@@ -65,8 +65,8 @@ class BertGGCN(nn.Module):
             tokenized_code = self.tokenizer(node_code, True)
 
             input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
-            # cls_feats = self.bert_model(input_ids.to("cuda"), attention_mask.to("cuda"))[0][:, 0]
-            cls_feats = self.bert_model(input_ids, attention_mask)[0][:, 0]
+            cls_feats = self.bert_model(input_ids.to("cuda"), attention_mask.to("cuda"))[0][:, 0]
+            # cls_feats = self.bert_model(input_ids, attention_mask)[0][:, 0]
 
             source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
             # The node representation is the concatenation of label and source embeddings

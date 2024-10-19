@@ -12,8 +12,8 @@ class NodesEmbedding:
         # self.w2v_keyed_vectors = w2v_keyed_vectors
         # self.kv_size = w2v_keyed_vectors.vector_size
         self.tokenizer_bert = RobertaTokenizer.from_pretrained("microsoft/codebert-base")
-        # self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base").to("cuda")
-        self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base")
+        self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base").to("cuda")
+        # self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base")
         self.nodes_dim = nodes_dim
 
         assert self.nodes_dim >= 0
@@ -40,8 +40,8 @@ class NodesEmbedding:
             node_code = node.get_code()
             tokenized_code = tokenizer(node_code, True)
             input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
-            # cls_feats = self.bert_model(input_ids.to("cuda"), attention_mask.to("cuda"))[0][:, 0]
-            cls_feats = self.bert_model(input_ids, attention_mask)[0][:, 0]
+            cls_feats = self.bert_model(input_ids.to("cuda"), attention_mask.to("cuda"))[0][:, 0]
+            # cls_feats = self.bert_model(input_ids, attention_mask)[0][:, 0]
             source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
             # The node representation is the concatenation of label and source embeddings
             embedding = np.concatenate((np.array([node.type]), source_embedding), axis=0)

@@ -15,7 +15,7 @@
         }
     },
     "create" : {
-        "slice_size": 1,
+        "slice_size": 20,
         "joern_cli_dir": "joern/joern-cli/"
     },
     "paths" : {
@@ -37,9 +37,9 @@
         "edge_type": "Cpg"
     },
     "process" : {
-        "epochs" : 1,
+        "epochs" : 10,
         "patience" : 10,
-        "batch_size" : 1,
+        "batch_size" : 8,
         "dataset_ratio" : 0.2,
         "shuffle" : true
     }
