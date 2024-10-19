@@ -16,7 +16,7 @@
     },
     "create" : {
         "filter_column_value": {"project" : "qemu"},
-        "slice_size": 500,
+        "slice_size": 1,
         "joern_cli_dir": "joern/joern-cli/"
     },
     "paths" : {
@@ -28,7 +28,7 @@
         "tokens" : "data/tokens/"
     },
     "files" : {
-        "raw" : "dataset.json",
+        "raw" : "first_100_elements.json",
         "cpg" : "cpg",
         "tokens" : "tokens.pkl",
         "input" : "input.pkl"
@@ -38,9 +38,9 @@
         "edge_type": "Cpg"
     },
     "process" : {
-        "epochs" : 100,
+        "epochs" : 1,
         "patience" : 10,
-        "batch_size" : 8,
+        "batch_size" : 1,
         "dataset_ratio" : 0.2,
         "shuffle" : true
     }

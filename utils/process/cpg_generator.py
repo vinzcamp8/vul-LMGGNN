@@ -28,7 +28,8 @@ def graph_indexing(graph):
 
 def joern_parse(joern_path, input_path, output_path, file_name):
     out_file = file_name + ".bin"
-    joern_parse_call = subprocess.run(["./" + joern_path + "joern-parse", input_path, "--output", output_path + out_file],
+    print('=== BEGIN joern_parse of ', out_file, '===')
+    joern_parse_call = subprocess.run(["./" + joern_path + "joern-parse", input_path, "--out", output_path + out_file],
                                       stdout=subprocess.PIPE, text=True, check=True)
     print(str(joern_parse_call))
     return out_file
@@ -41,18 +42,26 @@ def joern_create(joern_path, in_path, out_path, cpg_files):
         json_file_name = f"{cpg_file.split('.')[0]}.json"
         json_files.append(json_file_name)
 
+        print('=== BEGIN joern_create of', in_path+cpg_file, '===')
         print(in_path+cpg_file)
         if os.path.exists(in_path+cpg_file):
             json_out = f"{os.path.abspath(out_path)}/{json_file_name}"
             import_cpg_cmd = f"importCpg(\"{os.path.abspath(in_path)}/{cpg_file}\")\r".encode()
             script_path = f"{os.path.dirname(os.path.abspath(joern_path))}/graph-for-funcs.sc"
             run_script_cmd = f"cpg.runScript(\"{script_path}\").toString() |> \"{json_out}\"\r".encode()
+            print('=== porcodio1 ', in_path+cpg_file, '===')
             joern_process.stdin.write(import_cpg_cmd)
-            print(joern_process.stdout.readline().decode())
+            # print('=== porcodio2 ', in_path+cpg_file, '===')
+            # print(joern_process.stdout.readline().decode())
+            # print('=== porcodio3 ', in_path+cpg_file, '===')
             joern_process.stdin.write(run_script_cmd)
-            print(joern_process.stdout.readline().decode())
+            # print('=== porcodio4 ', in_path+cpg_file, '===')
+            # print(joern_process.stdout.readline().decode())
+            # print('=== porcodio5 ', in_path+cpg_file, '===')
             joern_process.stdin.write("delete\r".encode())
-            print(joern_process.stdout.readline().decode())
+            # print('=== porcodio6 ', in_path+cpg_file, '===')
+            # print(joern_process.stdout.readline().decode())
+            print('=== porcodio7 ', in_path+cpg_file, '===')
     try:
         outs, errs = joern_process.communicate(timeout=60)
     except subprocess.TimeoutExpired:

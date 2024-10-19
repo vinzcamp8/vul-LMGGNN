@@ -1,11 +1,12 @@
 import torch as th
+import torch as torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn.conv import GatedGraphConv
 from transformers import AutoModel, AutoTokenizer
 from transformers import RobertaTokenizer, RobertaConfig, RobertaModel
 
-torch.manual_seed(2020)
+th.manual_seed(2020)
 
 
 def get_conv_mp_out_size(in_size, last_layer, mps):
@@ -82,7 +83,8 @@ class Conv(nn.Module):
 
         Z = Z.view(-1, Z_flatten_size)
         Y = Y.view(-1, Y_flatten_size)
-        res = self.fc1(Z) * self.fc2(Y)
+        # res = self.fc1(Z) * self.fc2(Y)
+        res = self.fc1(Z)
         res = self.drop(res)
 
         res = F.softmax(res, dim=1)

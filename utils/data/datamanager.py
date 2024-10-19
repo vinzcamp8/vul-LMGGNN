@@ -86,28 +86,33 @@ def inner_join_by_index(df1, df2):
 
 def train_val_test_split(data_frame: pd.DataFrame, shuffle=True):
     print("Splitting Dataset")
-
+    
     false = data_frame[data_frame.target == 0]
     true = data_frame[data_frame.target == 1]
-
+    print(f"False: {len(false)}")
+    print(f"True: {len(true)}")
     train_false, test_false = train_test_split(false, test_size=0.2, shuffle=shuffle)
     test_false, val_false = train_test_split(test_false, test_size=0.5, shuffle=shuffle)
     train_true, test_true = train_test_split(true, test_size=0.2, shuffle=shuffle)
     test_true, val_true = train_test_split(test_true, test_size=0.5, shuffle=shuffle)
 
+    print(f"=== train_val_test_split ===")
     # run = train_false.append(train_true)
     train = pd.concat([train_false, train_true])
+    print(f"=== Train: {len(train)} ===")
 
     # val = val_false.append(val_true)
     val = pd.concat([val_false, val_true])
+    print(f"=== Val: {len(val)} ===")
 
     # test = test_false.append(test_true)
     test = pd.concat([test_false, test_true])
+    print(f"=== Test: {len(test)} ===")
 
     train = train.reset_index(drop=True)
     val = val.reset_index(drop=True)
     test = test.reset_index(drop=True)
-
+    print(f"=== After reset_index: Train: {len(train)} Val: {len(val)}  Test {len(test)} ===")
     return InputDataset(train), InputDataset(test), InputDataset(val)
 
 

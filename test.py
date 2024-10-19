@@ -28,7 +28,8 @@ def test(model, device, test_loader):
         with torch.no_grad():
             y_ = model(batch)
 
-        batch.y = batch.y.squeeze().long()
+        # batch.y = batch.y.squeeze().long()
+        batch.y = batch.y.long()
         test_loss += F.cross_entropy(y_, batch.y).item()
 
         pred = y_.max(-1, keepdim=True)[1]
@@ -42,6 +43,9 @@ def test(model, device, test_loader):
     recall = recall_score(y_true, y_pred)
     f1 = f1_score(y_true, y_pred)
 
+    print('Test set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
+        test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
+
     cm = confusion_matrix(y_true, y_pred)
 
     plt.figure(figsize=(8, 6))
@@ -52,6 +56,8 @@ def test(model, device, test_loader):
     plt.title('Confusion Matrix')
     plt.savefig('confusion_matrix.png')
 
+    y_true = np.nan_to_num(0)
+    y_probs = np.nan_to_num(0)
     fpr, tpr, _ = roc_curve(y_true, y_probs)
     roc_auc = auc(fpr, tpr)
 
@@ -70,7 +76,7 @@ def test(model, device, test_loader):
     header_text = "True label, Predicted label, Predicted Probability"
     np.savetxt('results.txt', results_array, fmt='%1.6f', delimiter='\t', header=header_text)
 
-    print('Test set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
-        test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
+    # print('Test set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
+    #     test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
 
     return accuracy, precision, recall, f1

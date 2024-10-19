@@ -8,23 +8,26 @@ from models.layers import encode_input
 from transformers import RobertaTokenizer, RobertaModel
 
 class NodesEmbedding:
-    def __init__(self, nodes_dim: int, w2v_keyed_vectors: Word2VecKeyedVectors):
-        self.w2v_keyed_vectors = w2v_keyed_vectors
-        self.kv_size = w2v_keyed_vectors.vector_size
+    def __init__(self, nodes_dim: int):
+        # self.w2v_keyed_vectors = w2v_keyed_vectors
+        # self.kv_size = w2v_keyed_vectors.vector_size
         self.tokenizer_bert = RobertaTokenizer.from_pretrained("microsoft/codebert-base")
-        self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base").to("cuda")
+        # self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base").to("cuda")
+        self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base")
         self.nodes_dim = nodes_dim
 
         assert self.nodes_dim >= 0
 
         # Buffer for embeddings with padding
-        self.target = torch.zeros(self.nodes_dim, self.kv_size + 1).float()
+        self.target = torch.zeros(self.nodes_dim, self.bert_model.config.hidden_size + 1).float()
 
     def __call__(self, nodes):
         embedded_nodes = self.embed_nodes(nodes)
         nodes_tensor = torch.from_numpy(embedded_nodes).float()
 
-        self.target[:nodes_tensor.size(0), :] = nodes_tensor
+        self.target[:nodes_tensor.size(0), :] = nodes_tensor ### PROBLEMA QUI CON LE DIMENSIONI
+# self.target[:nodes_tensor.size(0)] = nodes_tensor
+# RuntimeError: expand(torch.FloatTensor{[72, 769]}, size=[72]): the number of sizes provided (1) must be greater or equal to the number of dimensions in the tensor (2)
 
         return self.target
 
@@ -37,7 +40,8 @@ class NodesEmbedding:
             node_code = node.get_code()
             tokenized_code = tokenizer(node_code, True)
             input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
-            cls_feats = self.bert_model(input_ids.to("cuda"), attention_mask.to("cuda"))[0][:, 0]
+            # cls_feats = self.bert_model(input_ids.to("cuda"), attention_mask.to("cuda"))[0][:, 0]
+            cls_feats = self.bert_model(input_ids, attention_mask)[0][:, 0]
             source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
             # The node representation is the concatenation of label and source embeddings
             embedding = np.concatenate((np.array([node.type]), source_embedding), axis=0)
@@ -98,8 +102,8 @@ class GraphsEmbedding:
         return coo
 
 
-def nodes_to_input(nodes, target, nodes_dim, keyed_vectors, edge_type):
-    nodes_embedding = NodesEmbedding(nodes_dim, keyed_vectors)
+def nodes_to_input(nodes, target, nodes_dim, edge_type):
+    nodes_embedding = NodesEmbedding(nodes_dim)
     graphs_embedding = GraphsEmbedding(edge_type)
     label = torch.tensor([target]).float()
 
