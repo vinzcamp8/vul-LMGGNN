@@ -20,15 +20,10 @@ DEVICE = FILES.get_device()
 
 
 def select(dataset):
-    result = dataset.loc[dataset['project'] == "FFmpeg"]
-    len_filter = result.func.str.len() < 1200
-    result = result.loc[len_filter]
-    #print(len(result))
-    #result = result.iloc[11001:]
-    #print(len(result))
-    result = result.head(200)
-
-    return result
+    dataset = dataset.loc[dataset['project'] == "FFmpeg"]
+    dataset = dataset.loc[dataset.func.str.len() < 1200]
+    dataset = dataset.head(200)
+    return dataset
 
 def CPG_generator():
     """
@@ -41,12 +36,15 @@ def CPG_generator():
 
     # Here, taking the Devign dataset as an example,
     # specific modifications need to be made according to different dataset formats.
-    filtered = data.apply_filter(raw, select)
+    print(f"=== Raw dataset size: {len(raw)} ===")
+    filtered = data.apply_filter(raw, select) # reduce the dataset size
+    print(f"=== Filtered dataset size: {len(filtered)} ===")
     filtered = data.clean(filtered)
+    print(f"=== Filtered and cleaned dataset size: {len(filtered)} ===")
     data.drop(filtered, ["commit_id", "project"])
     slices = data.slice_frame(filtered, context.slice_size)
     slices = [(s, slice.apply(lambda x: x)) for s, slice in slices]
-
+    exit()
     cpg_files = []
     # Create CPG binary files
     for s, slice in slices:

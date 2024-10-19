@@ -24,10 +24,6 @@ class Create(Config):
         super().__init__('create')
 
     @property
-    def filter_column_value(self):
-        return self.get_property('filter_project')
-
-    @property
     def slice_size(self):
         return self.get_property('slice_size')
 
