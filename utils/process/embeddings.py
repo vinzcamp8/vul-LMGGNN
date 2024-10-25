@@ -32,23 +32,43 @@ class NodesEmbedding:
         return self.target
 
     def embed_nodes(self, nodes):
-
         embeddings = []
 
         for n_id, node in nodes.items():
-            # Get node's code
-            node_code = node.get_code()
-            tokenized_code = tokenizer(node_code, True)
-            input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
-            cls_feats = self.bert_model(input_ids.to("cuda"), attention_mask.to("cuda"))[0][:, 0]
-            # cls_feats = self.bert_model(input_ids, attention_mask)[0][:, 0]
-            source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
-            # The node representation is the concatenation of label and source embeddings
-            embedding = np.concatenate((np.array([node.type]), source_embedding), axis=0)
-            embeddings.append(embedding)
-        # print(node.label, node.properties.properties.get("METHOD_FULL_NAME"))
+            try:
+                # Get node's code
+                node_code = node.get_code()
+                tokenized_code = tokenizer(node_code, True)
 
+                # Tokenize the code and handle potential errors
+                input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
+                if input_ids is None or len(input_ids) == 0:  # Check if the encoding was successful
+                    print(f"Skipping node {n_id}: Tokenizer returned empty input_ids")
+                    continue
+
+                # Get embeddings using the BERT model
+                cls_feats = self.bert_model(input_ids.to("cuda"), attention_mask.to("cuda"))[0][:, 0]
+                source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
+
+                # Concatenate the node type with the source embeddings
+                embedding = np.concatenate((np.array([node.type]), source_embedding), axis=0)
+                embeddings.append(embedding)
+
+                # Delete the tensors from GPU and free up memory
+                del input_ids, attention_mask, cls_feats
+                torch.cuda.empty_cache()  # Optional: consider removing if it impacts performance
+
+            except Exception as e:
+                # Handle any exceptions and save the node only with its type
+                print(f"Error processing node {n_id}: {e}")
+                print(f"Node code: {node_code}")
+                source_embedding = np.zeros(self.bert_model.config.hidden_size)
+                embedding = np.concatenate((np.array([node.type]), source_embedding), axis=0)
+                embeddings.append(embedding)
+                continue
+                
         return np.array(embeddings)
+
 
     # fromTokenToVectors
     # This is the original Word2Vec model usage.
@@ -82,23 +102,31 @@ class GraphsEmbedding:
     def nodes_connectivity(self, nodes):
         # nodes are ordered by line and column
         coo = [[], []]
+        
+        count1 = 0
+        count2 = 0
 
         for node_idx, (node_id, node) in enumerate(nodes.items()):
             if node_idx != node.order:
                 raise Exception("Something wrong with the order")
 
             for e_id, edge in node.edges.items():
-                if edge.type != self.edge_type:
-                    continue
+#                 print(f"=== Nodes connectivity - edge.type: {edge.type} self.edge_type:{self.edge_type}")
+#                 if edge.type != self.edge_type:
+#                     continue
 
                 if edge.node_in in nodes and edge.node_in != node_id:
                     coo[0].append(nodes[edge.node_in].order)
                     coo[1].append(node_idx)
+                    count1 += 1
 
                 if edge.node_out in nodes and edge.node_out != node_id:
                     coo[0].append(node_idx)
                     coo[1].append(nodes[edge.node_out].order)
-
+                    count2 += 1
+                    
+        print(f"Total edges: {count1} + {count2}")
+            
         return coo
 
 

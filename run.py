@@ -21,8 +21,8 @@ DEVICE = FILES.get_device()
 
 def select(dataset):
     # dataset = dataset.loc[dataset['project'] == "FFmpeg"]
-    # dataset = dataset.loc[dataset.func.str.len() < 1200]
-    # dataset = dataset.head(200)
+    dataset = dataset.loc[dataset.func.str.len() < 2000]
+    # dataset = dataset.head(100)
     return dataset
 
 def CPG_generator():
@@ -37,14 +37,14 @@ def CPG_generator():
     # Here, taking the Devign dataset as an example,
     # specific modifications need to be made according to different dataset formats.
     print(f"=== Raw dataset size: {len(raw)} ===")
-    filtered = data.apply_filter(raw, select) # reduce the dataset size
+    filtered = data.apply_filter(raw, select) # see select function above
     print(f"=== Filtered dataset size: {len(filtered)} ===")
-    filtered = data.clean(filtered)
+    filtered = data.clean(filtered) # remove duplicates 
     print(f"=== Filtered and cleaned dataset size: {len(filtered)} ===")
     data.drop(filtered, ["commit_id", "project"])
     slices = data.slice_frame(filtered, context.slice_size)
     slices = [(s, slice.apply(lambda x: x)) for s, slice in slices]
-    exit()
+
     cpg_files = []
     # Create CPG binary files
     for s, slice in slices:
@@ -79,19 +79,6 @@ def Embed_generator():
     for pkl_file in dataset_files:
         file_name = pkl_file.split(".")[0]
         cpg_dataset = data.load(PATHS.cpg, pkl_file)
-        if (file_name == "1_cpg" or 
-            file_name == "2_cpg" or 
-            file_name == "3_cpg" or 
-            file_name == "4_cpg" or
-            file_name == "5_cpg" or 
-            file_name == "6_cpg" or
-            file_name == "9_cpg" or
-            file_name == "10_cpg" or
-            file_name == "11_cpg" or  
-            file_name == "12_cpg" or 
-            file_name == "14_cpg" or 
-            file_name == "15_cpg"):
-            continue
         print(f"=== Processing input dataset {file_name} with size {len(cpg_dataset)}. ===")
         tokens_dataset = data.tokenize(cpg_dataset)
         data.write(tokens_dataset, PATHS.tokens, f"{file_name}_{FILES.tokens}")
@@ -135,9 +122,8 @@ def train(model, device, train_loader, optimizer, epoch):
         print("y_pred.shape:", y_pred.shape)
         print("batch.y:", batch.y)
         print("batch.y shape:", batch.y.shape)
-        # batch.y = batch.y.squeeze()
-        batch.y = batch.y.long()
-        # y_pred = y_pred.max(-1, keepdim=True)[1].squeeze()
+        batch.y = batch.y.squeeze().long() # ORIGINAL CODE
+        # batch.y = batch.y.long()
         print('=== after squeeze ===')
         print("y_pred:", y_pred)
         print("y_pred.shape:", y_pred.shape)
@@ -214,6 +200,7 @@ if __name__ == '__main__':
 
     if args.cpg:
         CPG_generator()
+        exit()
     if args.embed:
         Embed_generator()
 

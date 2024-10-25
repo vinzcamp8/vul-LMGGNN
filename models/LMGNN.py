@@ -32,7 +32,7 @@ class BertGGCN(nn.Module):
         # print('=== LMGNN.py - forward:', data, '===')
 
         # if self.training:
-        #     self.update_nodes(data)
+        #     self.update_nodes(data) ## FORSE SI PUÒ FAR FUNNZIONARE USANDO data.func PER OTTENERE IL CODICE
 
         data.x = self.reduce_embedding(data)
         # print('=== LMGNN.py - forward 2:', data, '===')
@@ -50,6 +50,7 @@ class BertGGCN(nn.Module):
 
         return pred
 
+    ## FORSE SI PUÒ FAR FUNNZIONARE USANDO data.func PER OTTENERE IL CODICE
     def update_nodes(self, data):
         print('===', type(data), '===')
         print('===', data, '===')

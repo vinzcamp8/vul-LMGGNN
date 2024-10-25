@@ -15,7 +15,7 @@
         }
     },
     "create" : {
-        "slice_size": 20,
+        "slice_size": 100,
         "joern_cli_dir": "joern/joern-cli/"
     },
     "paths" : {
@@ -27,7 +27,7 @@
         "tokens" : "data/tokens/"
     },
     "files" : {
-        "raw" : "first_100_elements.json",
+        "raw" : "dataset.json",
         "cpg" : "cpg",
         "tokens" : "tokens.pkl",
         "input" : "input.pkl"
