@@ -85,7 +85,6 @@ class Conv(nn.Module):
         Z = Z.view(-1, Z_flatten_size)
         Y = Y.view(-1, Y_flatten_size)
         res = self.fc1(Z) * self.fc2(Y)
-        # res = self.fc1(Z)
         res = self.drop(res)
 
         res = F.softmax(res, dim=1)

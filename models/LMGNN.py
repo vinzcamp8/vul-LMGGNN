@@ -35,7 +35,6 @@ class BertGGCN(nn.Module):
         #     self.update_nodes(data) ## FORSE SI PUÒ FAR FUNNZIONARE USANDO data.func PER OTTENERE IL CODICE
 
         data.x = self.reduce_embedding(data)
-        # print('=== LMGNN.py - forward 2:', data, '===')
 
         x, edge_index, text = data.x, data.edge_index, data.func
         x = self.ggnn(x, edge_index)

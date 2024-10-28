@@ -115,20 +115,24 @@ def train(model, device, train_loader, optimizer, epoch):
 
         y_pred = model(batch)
         model.zero_grad()
+
         # print("y_pred data type:", y_pred.dtype)
         # print("batch.y.squeeze() data type:", batch.y.squeeze().dtype)
-        print('=== before squeeze ===')
-        print("y_pred:", y_pred)
-        print("y_pred.shape:", y_pred.shape)
-        print("batch.y:", batch.y)
-        print("batch.y shape:", batch.y.shape)
+        # print('=== before squeeze ===')
+        # print("y_pred:", y_pred)
+        # print("y_pred.shape:", y_pred.shape)
+        # print("batch.y:", batch.y)
+        # print("batch.y shape:", batch.y.shape)
+
         batch.y = batch.y.squeeze().long() # ORIGINAL CODE
         # batch.y = batch.y.long()
-        print('=== after squeeze ===')
-        print("y_pred:", y_pred)
-        print("y_pred.shape:", y_pred.shape)
-        print("batch.y:", batch.y)
-        print("batch.y shape:", batch.y.shape)
+        
+        # print('=== after squeeze ===')
+        # print("y_pred:", y_pred)
+        # print("y_pred.shape:", y_pred.shape)
+        # print("batch.y:", batch.y)
+        # print("batch.y shape:", batch.y.shape)
+        
         loss = F.cross_entropy(y_pred, batch.y)
         loss.backward()
         optimizer.step()
@@ -223,7 +227,7 @@ if __name__ == '__main__':
         model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
         # model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device)
         optimizer = torch.optim.AdamW(model.parameters(), lr=Bertggnn.learning_rate, weight_decay=Bertggnn.weight_decay)
-
+    
         best_acc = 0.0
         NUM_EPOCHS = context.epochs
         PATH = args.path
