@@ -95,7 +95,6 @@ def Embed_generator():
         del cpg_dataset
         gc.collect()
 
-
 def train(model, device, train_loader, optimizer, epoch):
     """
     Trains the model using the provided data.
@@ -116,31 +115,23 @@ def train(model, device, train_loader, optimizer, epoch):
         y_pred = model(batch)
         model.zero_grad()
 
-        # print("y_pred data type:", y_pred.dtype)
-        # print("batch.y.squeeze() data type:", batch.y.squeeze().dtype)
-        # print('=== before squeeze ===')
-        # print("y_pred:", y_pred)
-        # print("y_pred.shape:", y_pred.shape)
-        # print("batch.y:", batch.y)
-        # print("batch.y shape:", batch.y.shape)
-
-        batch.y = batch.y.squeeze().long() # ORIGINAL CODE
-        # batch.y = batch.y.long()
-        
-        # print('=== after squeeze ===')
-        # print("y_pred:", y_pred)
-        # print("y_pred.shape:", y_pred.shape)
-        # print("batch.y:", batch.y)
-        # print("batch.y shape:", batch.y.shape)
+        print("=== in train() y_pred min/max: ", y_pred.min().item(), y_pred.max().item())
+  
+        batch.y = batch.y.squeeze().long() ### CODICE ORIGINALE
+#         batch.y = batch.y.long()
         
         loss = F.cross_entropy(y_pred, batch.y)
         loss.backward()
         optimizer.step()
-        if (batch_idx + 1) % 100 == 0:
-            print('Train Epoch: {} [{}/{} ({:.2f}%)]/t Loss: {:.6f}'.format(epoch, (batch_idx + 1) * len(batch),
+        print(f"=== LOSS in train() backward: {loss}")
+        
+#         if (batch_idx + 1) % 100 == 0:
+        print('Train Epoch: {} [{}/{} ({:.2f}%)]/t Loss: {:.6f}'.format(epoch, (batch_idx + 1) * len(batch),
                                                                             len(train_loader.dataset),
                                                                             100. * batch_idx / len(train_loader),
                                                                             loss.item()))
+
+
 def validate(model, device, test_loader):
     """
     Validates the model using the provided test data.
@@ -210,6 +201,13 @@ if __name__ == '__main__':
 
     context = configs.Process()
     input_dataset = loads(PATHS.input)
+
+    # # remove samples without edges
+    # input_dataset = input_dataset[input_dataset['input'].apply(lambda x: x.edge_index.size(1) > 0)]
+    # # standardize feature vector for handle 0 values in node feature vector
+    # for id, data in input_dataset.input.items():
+    #     data.x = (data.x - data.x.mean(dim=0)) / (data.x.std(dim=0) + 1e-6)
+
     # split the dataset and pass to DataLoader with batch size
     train_loader, val_loader, test_loader = list(
         map(lambda x: x.get_loader(context.batch_size, shuffle=context.shuffle),

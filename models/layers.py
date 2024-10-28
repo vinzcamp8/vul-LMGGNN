@@ -30,7 +30,7 @@ def encode_input(text, tokenizer):
 #     print(input.keys())
     return input.input_ids, input.attention_mask
 
-### This class is never used in the codebase
+### This class is not used in the current implementation
 class CodeBertClassifier(th.nn.Module):
     def __init__(self, pretrained_model='roberta_base', nb_class=2):
         super(CodeBertClassifier, self).__init__()
@@ -84,14 +84,29 @@ class Conv(nn.Module):
 
         Z = Z.view(-1, Z_flatten_size)
         Y = Y.view(-1, Y_flatten_size)
-        res = self.fc1(Z) * self.fc2(Y)
+        output_fc1 = self.fc1(Z)
+        output_fc2 = self.fc2(Y)
+        res = output_fc1 * output_fc2
+
+#         output_fc1 = F.normalize(self.fc1(Z), p=2, dim=1)
+#         output_fc2 = F.normalize(self.fc2(Y), p=2, dim=1)
+#         res = output_fc1 * output_fc2
+
+        if torch.isnan(output_fc1).any():
+            print("=== NaN detected in fc1(Z) outputs! ===")
+        if torch.isnan(output_fc2).any():
+            print("=== NaN detected in fc2(Y) outputs! ===")
+        
+        if torch.isnan(res).any():
+            print(f"=== NaN detected in res - Conv forward before softmax")
         res = self.drop(res)
-
         res = F.softmax(res, dim=1)
-
+        if torch.isnan(res).any():
+            print(f"=== NaN detected in res - Conv forward after softmax")
+        
         return res
 
-
+### This class is not used in the current implementation
 class Net(nn.Module):
 
     def __init__(self, gated_graph_conv_args, conv_args, emb_size, device):
