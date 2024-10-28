@@ -11,8 +11,9 @@ class NodesEmbedding:
     def __init__(self, nodes_dim: int):
         # self.w2v_keyed_vectors = w2v_keyed_vectors
         # self.kv_size = w2v_keyed_vectors.vector_size
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.tokenizer_bert = RobertaTokenizer.from_pretrained("microsoft/codebert-base")
-        self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base").to("cuda")
+        self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base").to(self.device)
         # self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base")
         self.nodes_dim = nodes_dim
 
@@ -47,7 +48,7 @@ class NodesEmbedding:
                     continue
 
                 # Get embeddings using the BERT model
-                cls_feats = self.bert_model(input_ids.to("cuda"), attention_mask.to("cuda"))[0][:, 0]
+                cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
                 source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
 
                 # Concatenate the node type with the source embeddings
@@ -56,7 +57,8 @@ class NodesEmbedding:
 
                 # Delete the tensors from GPU and free up memory
                 del input_ids, attention_mask, cls_feats
-                torch.cuda.empty_cache()  # Optional: consider removing if it impacts performance
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()  # Optional: consider removing if it impacts performance
 
             except Exception as e:
                 # Handle any exceptions and save the node only with its type

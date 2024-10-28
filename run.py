@@ -220,7 +220,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if args.mode == "train":
-        model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to("cuda")
+        model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
         # model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device)
         optimizer = torch.optim.AdamW(model.parameters(), lr=Bertggnn.learning_rate, weight_decay=Bertggnn.weight_decay)
 
@@ -235,7 +235,7 @@ if __name__ == '__main__':
                 torch.save(model.state_dict(), PATH)
             print("acc is: {:.4f}, best acc is {:.4f}n".format(acc, best_acc))
 
-    model_test = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to("cuda")
+    model_test = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
     # model_test = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device)
     model_test.load_state_dict(torch.load(args.path))
     accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader)
