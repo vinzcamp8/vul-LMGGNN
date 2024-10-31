@@ -3,14 +3,17 @@ import torch
 
 from torch_geometric.nn.conv import GatedGraphConv
 from torch_geometric.data import Batch
-from models.reveal_utils import GlobalAddPool
+from models.utils import GlobalAddPool
+
+my_mlp_hidden_dim = 256
+my_out_channels = 200
 
 # Reveal model
 class Reveal(nn.Module):
-    def __init__(self, num_layers=1, MLP_hidden_dim=256, need_node_emb=False):
+    def __init__(self, num_layers=1, MLP_hidden_dim=my_mlp_hidden_dim, need_node_emb=False):
         super().__init__()
         MLP_internal_dim = int(MLP_hidden_dim / 2)
-        input_dim = 200 # out_channels
+        input_dim = my_out_channels 
         self.input_size = input_dim
         self.hidden_dim = input_dim
         # GGNN

@@ -38,3 +38,12 @@ Use to switch between versions:
 ```
 update-alternatives --config java
 ```
+
+### For IVDetect
+Install dgl 2.3.0
+Pytorch 2.3.0
+Torch-sparse 2.3.0
+```
+pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.3.0+${CUDA}.html
+```
+where ${CUDA} should be replaced by either `cpu`, `cu118`, or `cu121` depending on your PyTorch installation.

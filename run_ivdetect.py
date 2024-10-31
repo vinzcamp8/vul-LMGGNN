@@ -168,7 +168,7 @@ def test(model, device, test_loader):
 
     results_array = np.column_stack((y_true, y_pred, y_probs))
     header_text = "True label, Predicted label, Predicted Probability"
-    np.savetxt('reveal_results.txt', results_array, fmt='%1.6f', delimiter='\t', header=header_text)
+    np.savetxt('ivdetect_results.txt', results_array, fmt='%1.6f', delimiter='\t', header=header_text)
 
     print('Test set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
         test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
@@ -195,15 +195,15 @@ train_loader, val_loader, test_loader = list(
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-from models.reveal import Reveal
+from models.ivdetect import IVDetectModel
 
 # Initialize the model and optimizer
-model = Reveal().to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.0001)
+model = IVDetectModel().to(device)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.01, weight_decay=0.0001)
 # Train the model
 best_acc = 0.0
 NUM_EPOCHS = 3
-PATH = "data/model/vinz_reveal_model.pth"
+PATH = "data/model/vinz_ivdetect_model.pth"
 for epoch in range(1, NUM_EPOCHS + 1):
     train(model, device, train_loader, optimizer, epoch)
     acc, precision, recall, f1 = validate(model, DEVICE, val_loader)
@@ -213,6 +213,6 @@ for epoch in range(1, NUM_EPOCHS + 1):
     print("====== Acc is: {:.4f}, best acc is {:.4f}n".format(acc, best_acc))
 
 # Test the model
-model_test = Reveal().to(device)
+model_test = IVDetectModel().to(device)
 model_test.load_state_dict(torch.load(PATH))
 accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader)
