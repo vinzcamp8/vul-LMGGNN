@@ -7,6 +7,8 @@ from torch_geometric.nn.conv import GatedGraphConv
 from transformers import AutoModel, AutoTokenizer
 from transformers import RobertaTokenizer, RobertaConfig, RobertaModel
 import numpy as np
+from utils.functions import tokenizer
+
 class BertGGCN(nn.Module):
     def __init__(self, gated_graph_conv_args, conv_args, emb_size, device):
         super(BertGGCN, self).__init__()
@@ -88,8 +90,8 @@ class BertGGCN(nn.Module):
                     embeddings.append(embedding)
                     continue
                 try:
-                    tokenized_code = self.tokenizer(node_code, True)
-                    input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
+                    tokenized_code = tokenizer(node_code, True)
+                    input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer)
 
                     cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
                     source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)

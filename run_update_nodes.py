@@ -192,7 +192,7 @@ def validate(model, device, test_loader):
 
 # CPG_generator()
 
-Embed_generator()
+# Embed_generator()
  
 context = configs.Process()
 input_dataset = loads(PATHS.input)
