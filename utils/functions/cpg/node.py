@@ -27,6 +27,7 @@ class Node:
     def __init__(self, node, indentation):
         self.id = node["id"].split(".")[-1]
         self.label = self.id.split("@")[0]
+        self.label = self.label.split("[")[0]
         self.indentation = indentation + 1
         self.properties = Properties(node["properties"], self.indentation)
         self.edges = {edge["id"].split(".")[-1]: Edge(edge, self.indentation) for edge in node["edges"]}

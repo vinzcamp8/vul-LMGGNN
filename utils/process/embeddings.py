@@ -23,21 +23,28 @@ class NodesEmbedding:
         self.target = torch.zeros(self.nodes_dim, self.bert_model.config.hidden_size + 1).float()
 
     def __call__(self, nodes):
-        embedded_nodes = self.embed_nodes(nodes)
+        embedded_nodes, types, codes = self.embed_nodes(nodes)
         nodes_tensor = torch.from_numpy(embedded_nodes).float()
+        
+        types_buffer = [None] * self.nodes_dim
+        codes_buffer = [None] * self.nodes_dim
 
-        self.target[:nodes_tensor.size(0), :] = nodes_tensor ### PROBLEMA QUI CON LE DIMENSIONI
-# self.target[:nodes_tensor.size(0)] = nodes_tensor
-# RuntimeError: expand(torch.FloatTensor{[72, 769]}, size=[72]): the number of sizes provided (1) must be greater or equal to the number of dimensions in the tensor (2)
+        types_buffer[:len(types)] = types
+        codes_buffer[:len(codes)] = codes
 
-        return self.target
+        self.target[:nodes_tensor.size(0), :] = nodes_tensor 
+        return self.target, types_buffer, codes_buffer
 
     def embed_nodes(self, nodes):
         embeddings = []
+        types = []
+        codes = []
 
+        print(f"== Length nodes: {len(nodes)}")
         for n_id, node in nodes.items():
             try:
                 # Get node's code
+                node_type = node.type
                 node_code = node.get_code()
                 tokenized_code = tokenizer(node_code, True)
 
@@ -52,8 +59,10 @@ class NodesEmbedding:
                 source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
 
                 # Concatenate the node type with the source embeddings
-                embedding = np.concatenate((np.array([node.type]), source_embedding), axis=0)
+                embedding = np.concatenate((np.array([node_type]), source_embedding), axis=0)
                 embeddings.append(embedding)
+                types.append(node_type)
+                codes.append(node_code)
 
                 # Delete the tensors from GPU and free up memory
                 del input_ids, attention_mask, cls_feats
@@ -62,14 +71,15 @@ class NodesEmbedding:
 
             except Exception as e:
                 # Handle any exceptions and save the node only with its type
-                print(f"Error processing node {n_id}: {e}")
+                print(f"embeddings - Error processing node {n_id}: {e}")
                 print(f"Node code: {node_code}")
                 source_embedding = np.zeros(self.bert_model.config.hidden_size)
                 embedding = np.concatenate((np.array([node.type]), source_embedding), axis=0)
                 embeddings.append(embedding)
+                codes.append(node_code)
                 continue
                 
-        return np.array(embeddings)
+        return np.array(embeddings), types, codes
 
 
     # fromTokenToVectors
@@ -116,7 +126,9 @@ class GraphsEmbedding:
 #                 print(f"=== Nodes connectivity - edge.type: {edge.type} self.edge_type:{self.edge_type}")
 #                 if edge.type != self.edge_type:
 #                     continue
-
+                print(f"=== Nodes connectivity - edge: in {edge.node_in} out {edge.node_out} ")
+                print(f"=== Nodes connectivity - nodes: {nodes} ")
+                print(f"=== Nodes connectivity - node id: {node_id} ")
                 if edge.node_in in nodes and edge.node_in != node_id:
                     coo[0].append(nodes[edge.node_in].order)
                     coo[1].append(node_idx)
@@ -137,4 +149,11 @@ def nodes_to_input(nodes, target, nodes_dim, edge_type):
     graphs_embedding = GraphsEmbedding(edge_type)
     label = torch.tensor([target]).float()
 
-    return Data(x=nodes_embedding(nodes), edge_index=graphs_embedding(nodes), y=label)
+    x, types, codes = nodes_embedding(nodes)
+    edge_index =  graphs_embedding(nodes)
+
+    py_data = Data(x=x, edge_index=edge_index, y=label, types=types, codes=codes)
+
+    print(f"== py_data: {py_data}")  
+
+    return py_data

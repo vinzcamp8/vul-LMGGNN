@@ -52,6 +52,7 @@ class IVDetectModel(nn.Module):
                 GCNConvGrad(self.h_size, self.h_size)
                 for _ in range(my_num_layers - 1)
             ]
+        # Try to use GCNConv instead of this custom class
         gcn_list.append(GCNConvGrad(self.h_size, self.feature_representation_size))
         self.convs = nn.ModuleList(gcn_list)
         self.relu = ReLU(inplace=True)

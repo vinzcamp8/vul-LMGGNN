@@ -1,3 +1,4 @@
+import torch
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
@@ -25,24 +26,20 @@ class BertGGCN(nn.Module):
 
     def forward(self, data):
         
-#         if self.training:
-        #     self.update_nodes(data) ## FORSE SI PUÒ FAR FUNNZIONARE USANDO data.func PER OTTENERE IL CODICE
+        # print(f"=== BertGCNN forward - data: {data}")
+        # print(f"=== BertGCNN forward - data.x: {data.x}")
+        # print(f"=== BertGCNN forward - data.edge_index: {data.edge_index}")
+        # print(f"=== BertGCNN forward - data.y: {data.y}")
+        # print(f"=== BertGCNN forward - data.func: {data.func}")
+        # print(f"=== BertGCNN forward - data.batch: {data.batch}")
+        # print(f"=== BertGCNN forward - data.ptr: {data.ptr}")
         
-        # Reduce embeddings
-        if torch.isnan(data.x).any():
-            print(f"=== NaN detected in data.x - BertGCNN forward before reduce emb")
-        print("=== BertGCNN forward before reduce emb - data.x min/max: ", data.x.min().item(), data.x.max().item())
 
-            
+        if self.training:
+            self.update_nodes(data) ## FORSE SI PUÒ FAR FUNNZIONARE 
+        
+        # Reduce embeddings            
         data.x = self.reduce_embedding(data)
-        
-        if torch.isnan(data.x).any():
-            print(f"=== NaN detected in data.x - BertGCNN forward after reduce emb")
-        print("=== BertGCNN forward after reduce emb - data.x min/max: ", data.x.min().item(), data.x.max().item())
-        
-        if torch.isnan(data.edge_index).any():
-            print(f"=== NaN detected in data.edge_index - BertGCNN forward")
-        print("=== BertGCNN forward before reduce emb - data.edge_index min/max: ", data.edge_index.min().item(), data.edge_index.max().item())
         
         # Extract x, edge_index, and text
         x, edge_index, text = data.x, data.edge_index, data.func
@@ -51,64 +48,74 @@ class BertGGCN(nn.Module):
 #         print(f"=== data.func in BertGCNN forward: {text}")
 
         # Gated Graph Convolution
-
         x = self.ggnn(x, edge_index)
-        if torch.isnan(x).any():
-            print("=== x in BertGCNN forward - after ggnn layer - NaN found")
-        print("=== in BertGCNN forward - after ggnn layer - x min/max: ", x.min().item(), x.max().item())
-
         x = self.conv(x, data.x)
-        if torch.isnan(x).any():
-            print("=== x in BertGCNN forward - after conv layer - NaN found")
-        print("=== in BertGCNN forward - after conv layer - x min/max: ", x.min().item(), x.max().item())
 
         # Encode the input and get CodeBERT features
         input_ids, attention_mask = encode_input(text, self.tokenizer)
         cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
         cls_logit = self.classifier(cls_feats.to(self.device))
-        
-        print("=== in BertGCNN forward x min/max: ", x.min().item(), x.max().item())
-        print("=== in BertGCNN forward cls_logit min/max: ", cls_logit.min().item(), cls_logit.max().item())
 
 
         # Combine the predictions
         pred = (x + 1e-10) * self.k + cls_logit * (1 - self.k)
-        print("=== in BertGCNN forward pred min/max: ", pred.min().item(), pred.max().item())
 
         # Ensure pred is strictly positive 
         pred = th.clamp(pred, min=1e-10)
-        print("=== in BertGCNN forward pred after clamp min/max: ", pred.min().item(), pred.max().item())
 
         # Apply logarithm safely
         pred = th.log(pred)
-        print("=== in BertGCNN forward pred after log min/max: ", pred.min().item(), pred.max().item())
 
         return pred
 
     ## FORSE SI PUÒ FAR FUNNZIONARE USANDO data.func PER OTTENERE IL CODICE
+    # provare a mettere il padding anche nei types a nei codes di ogni data loader
+    # in questo modo le dimensioni sono fisse (205 nodi max)
+    # e posso fare l'embedding updates in modo corretto in update_nodes
+    # magari mettere un valore flag per indicare che il nodo è un padding
+    # e non fare l'update_nodes ma lasciare il padding
     def update_nodes(self, data):
-        print('===', type(data), '===')
-        print('===', data, '===')
-        print('===', type(data.x), '===')
-        print('===', data.x, '===')
-        print('===', type(data.x.size(0)), '===')
-        print('===', data.x.size(0), '===')
-        # for n_id, node in data.x.items():
-        for n_id in range(data.x.size(0)):  # Iterate over the number of nodes
-            node = data.x[n_id]  # Get the feature vector for the node
-            # Get node's code
-            node_code = node.get_code()
-            tokenized_code = self.tokenizer(node_code, True)
+        embeddings = []
+        i = 0
+        print(f"=== UPDATE NODES data: {data}")
 
-            input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
-            cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
-            # cls_feats = self.bert_model(input_ids, attention_mask)[0][:, 0]
+        
+        for types_list, codes_list in zip(data.types, data.codes):
+            for node_type, node_code in zip(types_list, codes_list):
+                i = i + 1
+                if node_type is None or node_code is None:
+                    embedding = np.zeros(self.bert_model.config.hidden_size + 1)
+                    embeddings.append(embedding)
+                    continue
+                try:
+                    tokenized_code = self.tokenizer(node_code, True)
+                    input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
 
-            source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
-            # The node representation is the concatenation of label and source embeddings
-            embedding = np.concatenate((np.array([node.type]), source_embedding), axis=0)
-            # print(node.label, node.properties.properties.get("METHOD_FULL_NAME"))
-            data.x = embedding
+                    cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
+                    source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
+                    # The node representation is the concatenation of label and source embeddings
+                    embedding = np.concatenate((np.array([node_type]), source_embedding), axis=0)
+                    embeddings.append(embedding)
+
+                    # Delete the tensors from GPU and free up memory
+                    del input_ids, attention_mask, cls_feats
+                    if th.cuda.is_available():
+                        th.cuda.empty_cache()
+                except Exception as e:
+                    # Handle any exceptions and save the node only with its type
+                    print(f"forward - Error processing node {i}: {e}")
+                    print(f"Node code python type: {type(node_code)}")
+                    print(f"Node code: {node_code}")
+                    # ERRORE QUI DICE CHE NON È STR ANCHE SE LO È
+                    # forward - Error processing node 1: text input must be of type `str` (single example), `List[str]` (batch or single pretokenized example) or `List[List[str]]` (batch of pretokenized examples).
+                    # Node code python type: <class 'str'>
+                    # Node code: table_row_block
+                    source_embedding = np.zeros(self.bert_model.config.hidden_size)
+                    embedding = np.concatenate((np.array([node_type]), source_embedding), axis=0)
+                    embeddings.append(embedding)
+                    continue
+
+        data.x = th.from_numpy(np.array(embeddings)).float()
     
     def reduce_embedding(self, data):
         linear_layer = nn.Linear(data.x.size(1), 101).to(self.device)
@@ -122,4 +129,5 @@ class BertGGCN(nn.Module):
 
     def load(self, path):
         self.load_state_dict(torch.load(path))
+
 

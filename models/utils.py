@@ -30,7 +30,8 @@ class GlobalMaxMeanPool(GNNPool):
 
     def forward(self, x, batch):
         return torch.cat((global_max_pool(x, batch), global_mean_pool(x, batch)), dim=1)
-    
+
+# Maybe I can use the original class and avoid the problem of the original code in Matmul
 class GCNConvGrad(GCNConv):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

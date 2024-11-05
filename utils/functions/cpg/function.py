@@ -6,7 +6,7 @@ class Function:
         self.name = function["function"]
         self.id = function["id"].split(".")[-1]
         self.indentation = 1
-        self.ast = AST(function["AST"], self.indentation)
+        self.ast = AST(function["AST"], self.indentation) # AST nodes include also CFG and PDG nodes
 
     def __str__(self):
         indentation = self.indentation * "\t"

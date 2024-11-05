@@ -13,6 +13,7 @@ from models.LMGNN import BertGGCN
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import matplotlib.pyplot as plt
 from test import test
+from utils.functions.input_dataset import InputDataset
 
 PATHS = configs.Paths()
 FILES = configs.Files()
@@ -37,18 +38,17 @@ def CPG_generator():
     # Here, taking the Devign dataset as an example,
     # specific modifications need to be made according to different dataset formats.
     print(f"=== Raw dataset size: {len(raw)} ===")
-    filtered = data.apply_filter(raw, select) # see "select" function above
+    filtered = data.apply_filter(raw, select) # see select function above
     print(f"=== Filtered dataset size: {len(filtered)} ===")
     filtered = data.clean(filtered) # remove duplicates 
     print(f"=== Filtered and cleaned dataset size: {len(filtered)} ===")
     data.drop(filtered, ["commit_id", "project"])
     slices = data.slice_frame(filtered, context.slice_size)
-    slices = [(s, slice.apply(lambda x: x)) for s, slice in slices] # can be removed, doesn't apply any function
+    slices = [(s, slice.apply(lambda x: x)) for s, slice in slices]
 
     cpg_files = []
     # Create CPG binary files
     for s, slice in slices:
-        # s: index of the slice, slice: dataframe
         data.to_files(slice, PATHS.joern)
         cpg_file = process.joern_parse(context.joern_cli_dir, PATHS.joern, PATHS.cpg, f"{s}_{FILES.cpg}")
         cpg_files.append(cpg_file)
@@ -80,9 +80,9 @@ def Embed_generator():
     for pkl_file in dataset_files:
         file_name = pkl_file.split(".")[0]
         cpg_dataset = data.load(PATHS.cpg, pkl_file)
+        cpg_dataset = cpg_dataset.head(3)
         print(f"=== Processing input dataset {file_name} with size {len(cpg_dataset)}. ===")
-
-        tokens_dataset = data.tokenize(cpg_dataset)                             
+        tokens_dataset = data.tokenize(cpg_dataset)
         data.write(tokens_dataset, PATHS.tokens, f"{file_name}_{FILES.tokens}")
 
         cpg_dataset["nodes"] = cpg_dataset.apply(lambda row: cpg.parse_to_nodes(row.cpg, context.nodes_dim), axis=1)
@@ -90,8 +90,11 @@ def Embed_generator():
                                                                             context.edge_type), axis=1)
         data.drop(cpg_dataset, ["nodes"])
         print(f"=== Saving input dataset {file_name} with size {len(cpg_dataset)}. ===")
-        # write(cpg_dataset[["input", "target"]], PATHS.input, f"{file_name}_{FILES.input}")
-        # write(cpg_dataset[["input", "target","func"]], PATHS.input, f"{file_name}_{FILES.input}")
+        print(f"=== Saving input dataset {cpg_dataset['input']}. ===")
+
+        print(f"=== First element of input dataset: {cpg_dataset['input'].iloc[0]} ===")
+
+
         data.write(cpg_dataset[["input", "target", "func"]], PATHS.input, f"{file_name}_{FILES.input}")
 
         del cpg_dataset
@@ -185,63 +188,62 @@ def validate(model, device, test_loader):
 
     return accuracy, precision, recall, f1
 
-if __name__ == '__main__':
-    parser: ArgumentParser = argparse.ArgumentParser()
-    # parser.add_argument('-p', '--prepare', help='Prepare task', required=False)
-    parser.add_argument('-cpg', '--cpg', action='store_true', help='Specify to perform CPG generation task')
-    parser.add_argument('-embed', '--embed', action='store_true', help='Specify to perform Embedding generation task')
-    parser.add_argument('-mode', '--mode', default="train", help='Specify the mode (e.g., train, test)')
-    parser.add_argument('-path', '--path', default=None, help='Specify the path for the model')
+#### MAIN ####
 
-    args = parser.parse_args()
+# CPG_generator()
 
-    if args.cpg:
-        CPG_generator()
-        exit()
-    if args.embed:
-        Embed_generator()
+Embed_generator()
+ 
+context = configs.Process()
+input_dataset = loads(PATHS.input)
 
-    context = configs.Process()
-    input_dataset = loads(PATHS.input)
+# # remove samples without edges
+# input_dataset = input_dataset[input_dataset['input'].apply(lambda x: x.edge_index.size(1) > 0)]
+# # standardize feature vector for handle 0 values in node feature vector
+# for id, data in input_dataset.input.items():
+#     data.x = (data.x - data.x.mean(dim=0)) / (data.x.std(dim=0) + 1e-6)
 
-    # # remove samples without edges
-    # input_dataset = input_dataset[input_dataset['input'].apply(lambda x: x.edge_index.size(1) > 0)]
-    # # standardize feature vector for handle 0 values in node feature vector
-    # for id, data in input_dataset.input.items():
-    #     data.x = (data.x - data.x.mean(dim=0)) / (data.x.std(dim=0) + 1e-6)
+# split the dataset and pass to DataLoader with batch size
+# train_loader, val_loader, test_loader = list(
+#     map(lambda x: x.get_loader(context.batch_size, shuffle=context.shuffle),
+#         train_val_test_split(input_dataset, shuffle=context.shuffle)))
 
-    # split the dataset and pass to DataLoader with batch size
-    train_loader, val_loader, test_loader = list(
-        map(lambda x: x.get_loader(context.batch_size, shuffle=context.shuffle),
-            train_val_test_split(input_dataset, shuffle=context.shuffle)))
-    
-    print(f'=== run.py - DataLoader: {len(train_loader)} {len(val_loader)} {len(test_loader)} ====')
+input_dataset = input_dataset.reset_index(drop=True)
+input_dataset = InputDataset(input_dataset)
+train_loader = input_dataset.get_loader(3, shuffle=context.shuffle)
+# each element in codes and types is a list with the codes and types of each function graph
 
-    Bertggnn = configs.BertGGNN()
-    gated_graph_conv_args = Bertggnn.model["gated_graph_conv_args"]
-    conv_args = Bertggnn.model["conv_args"]
-    emb_size = Bertggnn.model["emb_size"]
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    if args.mode == "train":
-        model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
-        # model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device)
-        optimizer = torch.optim.AdamW(model.parameters(), lr=Bertggnn.learning_rate, weight_decay=Bertggnn.weight_decay)
-    
-        best_acc = 0.0
-        NUM_EPOCHS = context.epochs
-        PATH = args.path
-        for epoch in range(1, NUM_EPOCHS + 1):
-            train(model, device, train_loader, optimizer, epoch)
-            acc, precision, recall, f1 = validate(model, DEVICE, val_loader)
-            if best_acc <= acc:
-                best_acc = acc
-                torch.save(model.state_dict(), PATH)
-            print("acc is: {:.4f}, best acc is {:.4f}n".format(acc, best_acc))
+val_loader = None
+test_loader = None
 
-    model_test = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
-    # model_test = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device)
-    model_test.load_state_dict(torch.load(args.path))
-    accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader)
+# print(f'=== run.py - DataLoader: {len(train_loader)} {len(val_loader)} {len(test_loader)} ====')
+
+Bertggnn = configs.BertGGNN()
+gated_graph_conv_args = Bertggnn.model["gated_graph_conv_args"]
+conv_args = Bertggnn.model["conv_args"]
+emb_size = Bertggnn.model["emb_size"]
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
+# model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device)
+optimizer = torch.optim.AdamW(model.parameters(), lr=Bertggnn.learning_rate, weight_decay=Bertggnn.weight_decay)
+
+best_acc = 0.0
+NUM_EPOCHS = context.epochs
+PATH = "data/model/vinz_updateNodes_model"
+for epoch in range(1, NUM_EPOCHS + 1):
+    train(model, device, train_loader, optimizer, epoch)
+    # acc, precision, recall, f1 = validate(model, DEVICE, val_loader)
+    # if best_acc <= acc:
+    #     best_acc = acc
+    #     torch.save(model.state_dict(), PATH)
+    # print("acc is: {:.4f}, best acc is {:.4f}n".format(acc, best_acc))
+
+# model_test = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
+# # model_test = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device)
+# model_test.load_state_dict(torch.load(args.path))
+# accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader)
 
 
