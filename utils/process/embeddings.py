@@ -48,11 +48,8 @@ class NodesEmbedding:
                 node_code = node.get_code()
                 tokenized_code = tokenizer(node_code, True)
 
-                # Tokenize the code and handle potential errors
+                # Tokenize the code
                 input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
-                if input_ids is None or len(input_ids) == 0:  # Check if the encoding was successful
-                    print(f"Skipping node {n_id}: Tokenizer returned empty input_ids")
-                    continue
 
                 # Get embeddings using the BERT model
                 cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]

@@ -15,7 +15,7 @@
         }
     },
     "create" : {
-        "slice_size": 100,
+        "slice_size": 500,
         "joern_cli_dir": "joern/joern-cli/"
     },
     "paths" : {
@@ -27,7 +27,7 @@
         "tokens" : "data/tokens/"
     },
     "files" : {
-        "raw" : "dataset.json",
+        "raw" : "mivia-megavul_combined_dataset.json",
         "cpg" : "cpg",
         "tokens" : "tokens.pkl",
         "input" : "input.pkl"

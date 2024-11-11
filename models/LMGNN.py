@@ -19,7 +19,7 @@ class BertGGCN(nn.Module):
                          fc_1_size=gated_graph_conv_args["out_channels"] + emb_size,
                          fc_2_size=gated_graph_conv_args["out_channels"]).to(device)
         self.nb_class = 2
-        self.tokenizer = RobertaTokenizer.from_pretrained("microsoft/codebert-base")
+        self.tokenizer_bert = RobertaTokenizer.from_pretrained("microsoft/codebert-base")
         self.bert_model = RobertaModel.from_pretrained("microsoft/codebert-base").to(device)
         self.feat_dim = list(self.bert_model.modules())[-2].out_features
         self.classifier = th.nn.Linear(self.feat_dim, self.nb_class).to(device)
@@ -54,7 +54,9 @@ class BertGGCN(nn.Module):
         x = self.conv(x, data.x)
 
         # Encode the input and get CodeBERT features
-        input_ids, attention_mask = encode_input(text, self.tokenizer)
+        # Should I tokenize the text before passing it to BERT?
+        # No, because the PLM should capture different features than the GNN
+        input_ids, attention_mask = encode_input(text, self.tokenizer_bert)
         cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
         cls_logit = self.classifier(cls_feats.to(self.device))
 
@@ -70,12 +72,12 @@ class BertGGCN(nn.Module):
 
         return pred
 
-    ## FORSE SI PUÒ FAR FUNNZIONARE USANDO data.func PER OTTENERE IL CODICE
-    # provare a mettere il padding anche nei types a nei codes di ogni data loader
-    # in questo modo le dimensioni sono fisse (205 nodi max)
-    # e posso fare l'embedding updates in modo corretto in update_nodes
-    # magari mettere un valore flag per indicare che il nodo è un padding
-    # e non fare l'update_nodes ma lasciare il padding
+    '''
+    Update nodes require pyt Geometric data with codes and types attributes
+    They should be lists of lists of strings with the same length of the number of nodes
+    # first list = number of samples in a single batch (batch_size)
+    # second list = fixed number of nodes (205) 
+    '''
     def update_nodes(self, data):
         embeddings = []
         i = 0
@@ -91,7 +93,7 @@ class BertGGCN(nn.Module):
                     continue
                 try:
                     tokenized_code = tokenizer(node_code, True)
-                    input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer)
+                    input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
 
                     cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
                     source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)

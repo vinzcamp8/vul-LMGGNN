@@ -1,3 +1,8 @@
+### Notes
+Slice size with 8GB ram: 
+- 100 OK
+- 500 "java.lang.OutOfMemoryError: Java heap space" at joern_create() "importCpg" line
+
 ### Dataset preprocess
 Look at `select` function in `run.py`
 ### Joern version v1.0.170
@@ -7,6 +12,11 @@ Look at `select` function in `run.py`
 
 Download [joern-cli.zip](https://github.com/joernio/joern/releases/download/v1.0.170/joern-cli.zip) and extract it in /joern
 
+#### Increse JVM heap size for joern (Actually idk if work)
+Open the script of joern (joern-cli/joern) and change last line to 
+```
+$SCRIPT -J-XX:+UseG1GC -J-XX:CompressedClassSpaceSize=128m -Dlog4j.configurationFile="$SCRIPT_ABS_DIR"/conf/log4j2.xml -J-XX:+UseStringDeduplication -J-Xmx4g "$@"
+```
 
 ### Java JDK version 14
 14 or previous version as well
