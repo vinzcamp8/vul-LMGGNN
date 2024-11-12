@@ -134,12 +134,18 @@ class GraphsEmbedding:
 
 
 def nodes_to_input(nodes, target, nodes_dim, edge_type):
-    nodes_embedding = NodesEmbedding(nodes_dim)
+    
     graphs_embedding = GraphsEmbedding(edge_type)
-    label = torch.tensor([target]).float()
-
-    x, types, codes = nodes_embedding(nodes)
     edge_index =  graphs_embedding(nodes)
+    
+    if (len(edge_index[0]) + len(edge_index[0])) == 0:
+        print(f"=== nodes_to_input - No edges found, skip the sample... ===")
+        return None
+    
+    nodes_embedding = NodesEmbedding(nodes_dim)
+    x, types, codes = nodes_embedding(nodes)
+
+    label = torch.tensor([target]).float()
 
     py_data = Data(x=x, edge_index=edge_index, y=label, types=types, codes=codes)
 

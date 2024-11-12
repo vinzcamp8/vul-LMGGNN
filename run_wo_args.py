@@ -108,6 +108,9 @@ def Embed_generator():
         cpg_dataset["nodes"] = cpg_dataset.apply(lambda row: cpg.parse_to_nodes(row.cpg, context.nodes_dim), axis=1)
         cpg_dataset["input"] = cpg_dataset.apply(lambda row: process.nodes_to_input(row.nodes, row.target, context.nodes_dim,
                                                                             context.edge_type), axis=1)
+        # Filter out rows where 'input' is None
+        cpg_dataset = cpg_dataset[cpg_dataset["input"].notnull()]
+        
         data.drop(cpg_dataset, ["nodes"])
         print(f"=== Saving input dataset {file_name} with size {len(cpg_dataset)}. ===")
         # write(cpg_dataset[["input", "target"]], PATHS.input, f"{file_name}_{FILES.input}")
@@ -292,9 +295,6 @@ if __name__ == '__main__':
     ###
     # filtered_dataset = Filter_raw_dataset()
     ###
-    # === Raw dataset size: 759905 ===
-    # === Filtered dataset size: 672239 ===
-    # === Filtered and cleaned dataset size: 672239 ===
 
     '''
     CPG_generator(), generate CPG datasets using Joern
@@ -306,10 +306,6 @@ if __name__ == '__main__':
     ###
     # CPG_generator(filtered_dataset)
     ###
-    # PC i5 10th - 8Gb RAM
-    # Around 4 hours for joern_parse -> .bin files (around 120 Gb)
-    # Around 1 hours for joern_create -> .json files (around 120 Gb)
-    # Around 30 minutes for json_process -> .pkl files (around 70 Gb)
 
     '''
     Embed_generator(), generate embeddings from CPG datasets using BERT
@@ -338,7 +334,8 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    # Training_Validation_Vul_LMGNN(train_loader, val_loader)
+    # path_output_model = "data/model/vinz_Vul-LMGNN_model"
+    # Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model)
     ### 
 
     '''

@@ -26,6 +26,9 @@ class BertGGCN(nn.Module):
         self.device = device
         # self.conv.apply(init_weights)
 
+        # Linear layer to reduce the embedding size
+        self.linear_layer = nn.Linear(gated_graph_conv_args["out_channels"] + emb_size, 101).to(device)
+
     def forward(self, data):
         
         # print(f"=== BertGCNN forward - data: {data}")
@@ -37,17 +40,14 @@ class BertGGCN(nn.Module):
         # print(f"=== BertGCNN forward - data.ptr: {data.ptr}")
         
 
-        if self.training:
-            self.update_nodes(data) ## FORSE SI PUÒ FAR FUNNZIONARE 
+        # if self.training:
+        #     self.update_nodes(data)
         
         # Reduce embeddings            
         data.x = self.reduce_embedding(data)
         
         # Extract x, edge_index, and text
         x, edge_index, text = data.x, data.edge_index, data.func
-        
-#         print(f"=== data.edge_index in BertGCNN forward: {data.edge_index}")
-#         print(f"=== data.func in BertGCNN forward: {text}")
 
         # Gated Graph Convolution
         x = self.ggnn(x, edge_index)
@@ -122,8 +122,7 @@ class BertGGCN(nn.Module):
         data.x = th.from_numpy(np.array(embeddings)).float()
     
     def reduce_embedding(self, data):
-        linear_layer = nn.Linear(data.x.size(1), 101).to(self.device)
-        reduced_embedding = linear_layer(data.x)
+        reduced_embedding = self.linear_layer(data.x.to(self.device))
         return reduced_embedding
 
     def save(self, path):
