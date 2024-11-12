@@ -2,7 +2,7 @@ from .properties import Properties
 from .edge import Edge
 from utils.functions import log as logger
 
-node_labels = ["Block", "Call", "Comment", "ControlStructure", "File", "Identifier", "FieldIdentifier", "Literal",
+node_labels = ["Block", "Call", "Comment", "ControlStructure", "File", "Identifier", "FieldIdentifier", "JumpTarget", "Literal",
                "Local", "Member", "MetaData", "Method", "MethodInst", "MethodParameterIn", "MethodParameterOut",
                "MethodReturn", "Namespace", "NamespaceBlock", "Return", "Type", "TypeDecl", "Unknown"]
 
@@ -10,9 +10,9 @@ operators = ['addition', 'addressOf', 'and', 'arithmeticShiftRight', 'assignment
              'assignmentAnd', 'assignmentArithmeticShiftRight', 'assignmentDivision',
              'assignmentMinus', 'assignmentMultiplication', 'assignmentOr', 'assignmentPlus',
              'assignmentShiftLeft', 'assignmentXor', 'cast', 'conditionalExpression',
-             'division', 'equals', 'fieldAccess', 'greaterEqualsThan', 'greaterThan',
+             'delete', 'division', 'equals', 'fieldAccess', 'greaterEqualsThan', 'greaterThan',
              'indirectFieldAccess', 'indirectIndexAccess', 'indirection', 'lessEqualsThan',
-             'lessThan', 'logicalAnd', 'logicalNot', 'logicalOr', 'minus', 'modulo', 'multiplication',
+             'lessThan', 'logicalAnd', 'logicalNot', 'logicalOr', 'minus', 'modulo', 'multiplication', "new",
              'not', 'notEquals', 'or', 'postDecrement', 'plus', 'postIncrement', 'preDecrement',
              'preIncrement', 'shiftLeft', 'sizeOf', 'subtraction']
 
@@ -79,4 +79,5 @@ class Node:
 
         if self.type is None:
             logger.log_warning("node", f"LABEL {self.label} not in labels!")
+            print("node", f"LABEL {self.label} not in labels!")
             self.type = len(node_labels) + 1

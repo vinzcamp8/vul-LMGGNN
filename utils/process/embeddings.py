@@ -40,7 +40,6 @@ class NodesEmbedding:
         types = []
         codes = []
 
-        print(f"== Length nodes: {len(nodes)}")
         for n_id, node in nodes.items():
             try:
                 # Get node's code
@@ -111,9 +110,6 @@ class GraphsEmbedding:
     def nodes_connectivity(self, nodes):
         # nodes are ordered by line and column
         coo = [[], []]
-        
-        count1 = 0
-        count2 = 0
 
         for node_idx, (node_id, node) in enumerate(nodes.items()):
             if node_idx != node.order:
@@ -123,20 +119,16 @@ class GraphsEmbedding:
 #                 print(f"=== Nodes connectivity - edge.type: {edge.type} self.edge_type:{self.edge_type}")
 #                 if edge.type != self.edge_type:
 #                     continue
-                print(f"=== Nodes connectivity - edge: in {edge.node_in} out {edge.node_out} ")
-                print(f"=== Nodes connectivity - nodes: {nodes} ")
-                print(f"=== Nodes connectivity - node id: {node_id} ")
+                # print(f"=== Nodes connectivity - edge: in {edge.node_in} out {edge.node_out} ")
+                # print(f"=== Nodes connectivity - nodes: {nodes} ")
+                # print(f"=== Nodes connectivity - node id: {node_id} ")
                 if edge.node_in in nodes and edge.node_in != node_id:
                     coo[0].append(nodes[edge.node_in].order)
                     coo[1].append(node_idx)
-                    count1 += 1
 
                 if edge.node_out in nodes and edge.node_out != node_id:
                     coo[0].append(node_idx)
                     coo[1].append(nodes[edge.node_out].order)
-                    count2 += 1
-                    
-        print(f"Total edges: {count1} + {count2}")
             
         return coo
 
@@ -151,6 +143,6 @@ def nodes_to_input(nodes, target, nodes_dim, edge_type):
 
     py_data = Data(x=x, edge_index=edge_index, y=label, types=types, codes=codes)
 
-    print(f"== py_data: {py_data}")  
+    print(f"=== PyTorch Geometric Data - sample: {py_data} ===")  
 
     return py_data

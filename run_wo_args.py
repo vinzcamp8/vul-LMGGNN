@@ -318,7 +318,7 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    # Embed_generator()
+    Embed_generator()
     ### 
 
     '''
