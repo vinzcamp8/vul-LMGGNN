@@ -13,6 +13,7 @@ from models.LMGNN import BertGGCN
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import matplotlib.pyplot as plt
 from test import test
+from utils.data.check_bin_json import find_bin_without_json, find_json
 
 '''
 Load the configuration parameters from the configs.json file
@@ -37,7 +38,7 @@ def Filter_raw_dataset():
     print(f"=== Filtered dataset size: {len(filtered)} ===")
     filtered = data.clean(filtered) # remove duplicates 
     print(f"=== Filtered and cleaned dataset size: {len(filtered)} ===")
-    data.drop(filtered, ["hash", "project"]) # Hash column name "hash" or "commit_id" depends on the dataset
+    data.drop(filtered, ["hash", "project", "cwe"]) # Hash column name "hash" or "commit_id" depends on the dataset
 
     return filtered
 
@@ -53,21 +54,28 @@ def CPG_generator(filtered_dataset):
     slices = [(s, slice.apply(lambda x: x)) for s, slice in slices] # can be removed, doesn't apply any function
 
     cpg_files = []
-    # # Create CPG binary files
-    # for s, slice in slices:
-    #     # s: index of the slice, slice: dataframe
-    #     data.to_files(slice, PATHS.joern)
-    #     cpg_file = process.joern_parse(context.joern_cli_dir, PATHS.joern, PATHS.cpg, f"{s}_{FILES.cpg}")
-    #     cpg_files.append(cpg_file)
-    #     print(f"Dataset {s} to cpg.")
-    #     shutil.rmtree(PATHS.joern)
+    # Create CPG binary files
+    for s, slice in slices:
+        # s: index of the slice, slice: dataframe
+        data.to_files(slice, PATHS.joern)
+        cpg_file = process.joern_parse(context.joern_cli_dir, PATHS.joern, PATHS.cpg, f"{s}_{FILES.cpg}")
+        cpg_files.append(cpg_file)
+        print(f"Dataset {s} to cpg.")
+        shutil.rmtree(PATHS.joern)
 
-    # Load CPG binary files
-    import os
-    cpg_files = [s for s in os.listdir(PATHS.cpg) if s.endswith('.bin')]
+    # # Load CPG binary files               (used for memory issues)
+    # cpg_files = find_bin_without_json(PATHS.cpg)
 
     # Create CPG with graphs json files
     json_files = process.joern_create(context.joern_cli_dir, PATHS.cpg, PATHS.cpg, cpg_files)
+    
+    # # Load CPG json files                 (used for memory issues)
+    # json_files = find_json(PATHS.cpg)
+    # print(len(slices), len(json_files))
+    # slices = slices[-345:]
+    # print(len(slices))
+
+    # Clean json and create CPG datasets
     for (s, slice), json_file in zip(slices, json_files):
         graphs = process.json_process(PATHS.cpg, json_file)
         if graphs is None:
@@ -282,20 +290,26 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    filtered_dataset = Filter_raw_dataset()
+    # filtered_dataset = Filter_raw_dataset()
     ###
+    # === Raw dataset size: 759905 ===
+    # === Filtered dataset size: 672239 ===
+    # === Filtered and cleaned dataset size: 672239 ===
 
     '''
     CPG_generator(), generate CPG datasets using Joern
-    Input: filtered data
-    Output: .pkl files containing CPGs (also .json files containing graphs and .bin files of Joern)
+    Input: filtered dataset
+    Output: sliced dataset in .pkl files containing CPGs [target, func, Index, cpg] (also .json files containing graphs and .bin files of Joern)
     Parameter configs.json:
     Note: Joern can print a warning "WARN MemberAccessLinker: Could not find type member." It's normal for code where the type of variable are custom types.
     '''
-    # Lanciato alle 17.19
     ###
-    CPG_generator(filtered_dataset)
+    # CPG_generator(filtered_dataset)
     ###
+    # PC i5 10th - 8Gb RAM
+    # Around 4 hours for joern_parse -> .bin files (around 120 Gb)
+    # Around 1 hours for joern_create -> .json files (around 120 Gb)
+    # Around 30 minutes for json_process -> .pkl files (around 70 Gb)
 
     '''
     Embed_generator(), generate embeddings from CPG datasets using BERT

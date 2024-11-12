@@ -1,7 +1,10 @@
-### Notes
-Slice size with 8GB ram: 
-- 100 OK
-- 500 "java.lang.OutOfMemoryError: Java heap space" at joern_create() "importCpg" line
+### Issue
+Slice size: 
+- 100 OK but there are too much slices files, hard to manage
+- 500 totally 1345 slices (0-1344)
+    - "java.lang.OutOfMemoryError: Java heap space" at joern_create() "importCpg" line (solved see bottom)
+        - increase max heap size, see bottom section
+        - increase process timeout in cpg_generator.py in joern_create()
 
 ### Dataset preprocess
 Look at `select` function in `run.py`
@@ -12,11 +15,18 @@ Look at `select` function in `run.py`
 
 Download [joern-cli.zip](https://github.com/joernio/joern/releases/download/v1.0.170/joern-cli.zip) and extract it in /joern
 
-#### Increse JVM heap size for joern (Actually idk if work)
+#### Increse JVM heap size for joern 
 Open the script of joern (joern-cli/joern) and change last line to 
 ```
-$SCRIPT -J-XX:+UseG1GC -J-XX:CompressedClassSpaceSize=128m -Dlog4j.configurationFile="$SCRIPT_ABS_DIR"/conf/log4j2.xml -J-XX:+UseStringDeduplication -J-Xmx4g "$@"
+$SCRIPT -J-XX:+UseG1GC -J-XX:CompressedClassSpaceSize=128m -Dlog4j.configurationFile="$SCRIPT_ABS_DIR"/conf/log4j2.xml -J-XX:+UseStringDeduplication -J-Xmx12g "$@"
 ```
+Speficly the -Xmx12g define the heap maximum size (2g,4g,8g,12g,16g...), even if you have only 8Gb of RAM you can use higher value (the system will use the swap area).
+
+#### To see the heap usage and maximum capacity of a Java process
+```
+jstat -gccapacity <pid> 1000 10 
+```
+1000 10 represent the refresh rate and the number of total output to print
 
 ### Java JDK version 14
 14 or previous version as well
