@@ -138,8 +138,8 @@ def nodes_to_input(nodes, target, nodes_dim, edge_type):
     graphs_embedding = GraphsEmbedding(edge_type)
     edge_index =  graphs_embedding(nodes)
     
-    if (len(edge_index[0]) + len(edge_index[0])) == 0:
-        print(f"=== nodes_to_input - No edges found, skip the sample... ===")
+    if (len(edge_index[0]) + len(edge_index[1])) == 0:
+        print(f"=== nodes_to_input - No edges found, sample skipping... ===")
         return None
     
     nodes_embedding = NodesEmbedding(nodes_dim)
