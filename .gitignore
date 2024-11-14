@@ -9,3 +9,4 @@ utils/process/__pycache__/embeddings.cpython-310.pyc
 models/__pycache__/LMGNN.cpython-310.pyc
 joern_analysis
 .vscode/settings.json
+zip_bin_with_json.py

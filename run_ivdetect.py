@@ -87,15 +87,17 @@ def validate(model, device, test_loader):
     f1 = f1_score(y_true, y_pred)
 
     cm = confusion_matrix(y_true, y_pred)
+    print("=== Validation confusion matrix: ")
+    print(cm)
 
-    plt.figure(figsize=(8, 6))
+    # plt.figure(figsize=(8, 6))
     # sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=['benign', 'malware'], yticklabels=['benign', 'malware'])
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.title('Confusion Matrix')
-    plt.savefig('confusion_matrix.png')
+    # plt.xlabel('Predicted')
+    # plt.ylabel('True')
+    # plt.title('Confusion Matrix')
+    # plt.savefig('confusion_matrix.png')
 
-    print('Test set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
+    print('Validation set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
         test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
 
     return accuracy, precision, recall, f1
@@ -139,7 +141,7 @@ def test(model, device, test_loader):
         test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
 
     cm = confusion_matrix(y_true, y_pred) 
-    print("=== Confusion matrix: ")
+    print("=== Test confusion matrix: ")
     print(cm)
 
     # plt.figure(figsize=(8, 6))
@@ -199,7 +201,7 @@ from models.ivdetect import IVDetectModel
 
 # Initialize the model and optimizer
 model = IVDetectModel().to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.01, weight_decay=0.0001)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=0.0001)
 # Train the model
 best_acc = 0.0
 NUM_EPOCHS = 3
@@ -210,7 +212,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
     if best_acc <= acc:
         best_acc = acc
         torch.save(model.state_dict(), PATH)
-    print("====== Acc is: {:.4f}, best acc is {:.4f}n".format(acc, best_acc))
+    print("====== Acc is: {:.4f}, best acc is {:.4f}".format(acc, best_acc))
 
 # Test the model
 model_test = IVDetectModel().to(device)

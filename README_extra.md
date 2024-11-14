@@ -1,10 +1,15 @@
-### Issue
+### Issues
 Slice size: 
 - 100 OK but there are too much slices files, hard to manage
-- 500 totally 1345 slices (0-1344)
+- 500 
     - "java.lang.OutOfMemoryError: Java heap space" at joern_create() "importCpg" line (solved see bottom)
         - increase max heap size, see bottom section
         - increase process timeout in cpg_generator.py in joern_create()
+
+In CPG_generator
+- Generate json with joern_create: some Cpg.bin has methods that freeze the generation when parsing the PDG edges
+    - this happens on few samples (4 for me) 
+    - my solution is to skip these methods parsing with graph-for-funcs_DEBUG.sc manually with joern (parse, see debug prints and then change line 77 and re-parse)   
 
 ### Dataset preprocess
 Look at `select` function in `run.py`
@@ -16,7 +21,7 @@ Look at `select` function in `run.py`
 Download [joern-cli.zip](https://github.com/joernio/joern/releases/download/v1.0.170/joern-cli.zip) and extract it in /joern
 
 #### Increse JVM heap size for joern 
-Open the script of joern (joern-cli/joern) and change last line to 
+Open the script of joern (joern/joern-cli/joern) and change last line to 
 ```
 $SCRIPT -J-XX:+UseG1GC -J-XX:CompressedClassSpaceSize=128m -Dlog4j.configurationFile="$SCRIPT_ABS_DIR"/conf/log4j2.xml -J-XX:+UseStringDeduplication -J-Xmx12g "$@"
 ```

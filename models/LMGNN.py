@@ -27,7 +27,7 @@ class BertGGCN(nn.Module):
         # self.conv.apply(init_weights)
 
         # Linear layer to reduce the embedding size
-        self.linear_layer = nn.Linear(gated_graph_conv_args["out_channels"] + emb_size, 101).to(device)
+        self.linear_layer = nn.Linear(self.feat_dim + 1, 101).to(device)
 
     def forward(self, data):
         

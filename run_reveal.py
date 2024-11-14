@@ -87,13 +87,16 @@ def validate(model, device, test_loader):
     f1 = f1_score(y_true, y_pred)
 
     cm = confusion_matrix(y_true, y_pred)
+    print("=== Validation confusion matrix: ")
+    print(cm)
 
-    plt.figure(figsize=(8, 6))
+
+    # plt.figure(figsize=(8, 6))
     # sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=['benign', 'malware'], yticklabels=['benign', 'malware'])
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.title('Confusion Matrix')
-    plt.savefig('confusion_matrix.png')
+    # plt.xlabel('Predicted')
+    # plt.ylabel('True')
+    # plt.title('Confusion Matrix')
+    # plt.savefig('confusion_matrix.png')
 
     print('Test set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
         test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
@@ -139,7 +142,7 @@ def test(model, device, test_loader):
         test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
 
     cm = confusion_matrix(y_true, y_pred) 
-    print("=== Confusion matrix: ")
+    print("=== Test confusion matrix: ")
     print(cm)
 
     # plt.figure(figsize=(8, 6))

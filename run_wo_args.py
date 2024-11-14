@@ -7,6 +7,7 @@ import utils.data as data
 import utils.process as process
 import utils.functions.cpg_mod as cpg
 import torch
+import pandas as pd
 import torch.nn.functional as F
 from utils.data.datamanager import loads, train_val_test_split
 from models.LMGNN import BertGGCN
@@ -14,6 +15,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 import matplotlib.pyplot as plt
 from test import test
 from utils.data.check_bin_json import find_bin_without_json, find_json
+import os
 
 '''
 Load the configuration parameters from the configs.json file
@@ -23,8 +25,20 @@ FILES = configs.Files()
 DEVICE = FILES.get_device()
 
 def filter_select(dataset):
-    # dataset = dataset.loc[dataset['project'] == "FFmpeg"]
-    dataset = dataset.loc[dataset.func.str.len() < 2000]
+    non_vulnerable = dataset.loc[dataset.target == 0]
+    vulnerable = dataset.loc[dataset.target == 1]
+
+    print(f"Non-vuln: {len(non_vulnerable)}, Vuln: {len(vulnerable)}")
+
+    vulnerable = vulnerable.loc[vulnerable.func.str.len() < 3000]
+
+    non_vulnerable = non_vulnerable.loc[non_vulnerable.func.str.len() < 1000]
+    non_vulnerable = non_vulnerable.loc[non_vulnerable.func.str.len() > 200]
+
+    print(f"After filter on length\nNon-vuln: {len(non_vulnerable)}, Vuln: {len(vulnerable)}")
+
+    dataset = pd.concat([non_vulnerable, vulnerable])
+
     # dataset = dataset.head(100)
     return dataset
 
@@ -42,51 +56,128 @@ def Filter_raw_dataset():
 
     return filtered
 
+# def CPG_generator(filtered_dataset):
+#     """
+#     Generates Code Property Graph (CPG) datasets from raw data.
+
+#     :return: None
+#     """
+#     context = configs.Create()
+
+#     slices = data.slice_frame(filtered_dataset, context.slice_size)
+#     slices = [(s, slice.apply(lambda x: x)) for s, slice in slices] # it create a list of tuples (index, dataframe)
+
+#     cpg_files = []
+#     # Create CPG binary files
+#     for s, slice in slices:
+#         # s: index of the slice, slice: dataframe
+#         data.to_files(slice, PATHS.joern)
+#         cpg_file = process.joern_parse(context.joern_cli_dir, PATHS.joern, PATHS.cpg, f"{s}_{FILES.cpg}")
+#         cpg_files.append(cpg_file)
+#         print(f"Dataset {s} to cpg.")
+#         shutil.rmtree(PATHS.joern)
+
+#     # # Load CPG binary files               (used for memory issues)
+#     # cpg_files = find_bin_without_json(PATHS.cpg)
+
+#     # Create CPG with graphs json files
+#     json_files = process.joern_create(context.joern_cli_dir, PATHS.cpg, PATHS.cpg, cpg_files)
+    
+#     # # Load CPG json files                 (used for memory issues)
+#     # json_files = find_json(PATHS.cpg)
+#     # print(len(slices), len(json_files))
+#     # slices = slices[-345:]
+#     # print(len(slices))
+
+#     # Clean json and create CPG datasets
+#     for (s, slice), json_file in zip(slices, json_files):
+#         graphs = process.json_process(PATHS.cpg, json_file)
+#         if graphs is None:
+#             print(f"Dataset chunk {s} not processed.")
+#             continue
+#         dataset = data.create_with_index(graphs, ["Index", "cpg"])
+#         dataset = data.inner_join_by_index(slice, dataset)
+#         print(f"Writing cpg dataset chunk {s}.")
+#         data.write(dataset, PATHS.cpg, f"{s}_{FILES.cpg}.pkl")
+#         del dataset
+#         gc.collect()
+
 def CPG_generator(filtered_dataset):
     """
-    Generates Code Property Graph (CPG) datasets from raw data.
-
-    :return: None
+    Generates Code Property Graph (CPG) datasets from raw data, processing one slice at a time.
+    
+    Each slice's `.bin` and `.json` files are deleted after the `.pkl` dataset is created.
     """
     context = configs.Create()
-
     slices = data.slice_frame(filtered_dataset, context.slice_size)
-    slices = [(s, slice.apply(lambda x: x)) for s, slice in slices] # can be removed, doesn't apply any function
-
-    cpg_files = []
-    # Create CPG binary files
+    slices = [(s, slice.apply(lambda x: x)) for s, slice in slices] # it create a list of tuples (index, dataframe)
+    if os.path.exists(PATHS.joern):
+        shutil.rmtree(PATHS.joern)  # Clear out any remaining files in the Joern directory
+    slices = slices[8:]
+    # Process each slice individually
     for s, slice in slices:
-        # s: index of the slice, slice: dataframe
+        # Step 1: Generate CPG binary file for the current slice
         data.to_files(slice, PATHS.joern)
         cpg_file = process.joern_parse(context.joern_cli_dir, PATHS.joern, PATHS.cpg, f"{s}_{FILES.cpg}")
-        cpg_files.append(cpg_file)
-        print(f"Dataset {s} to cpg.")
-        shutil.rmtree(PATHS.joern)
+        print(f"Dataset {s} parsed to cpg binary file.")
 
-    # # Load CPG binary files               (used for memory issues)
-    # cpg_files = find_bin_without_json(PATHS.cpg)
-
-    # Create CPG with graphs json files
-    json_files = process.joern_create(context.joern_cli_dir, PATHS.cpg, PATHS.cpg, cpg_files)
-    
-    # # Load CPG json files                 (used for memory issues)
-    # json_files = find_json(PATHS.cpg)
-    # print(len(slices), len(json_files))
-    # slices = slices[-345:]
-    # print(len(slices))
-
-    # Clean json and create CPG datasets
-    for (s, slice), json_file in zip(slices, json_files):
+        # Step 2: Create CPG with graphs JSON file
+        json_file = process.joern_create(context.joern_cli_dir, PATHS.cpg, PATHS.cpg, [cpg_file])[0]
+        print(f"CPG binary file for dataset {s} converted to JSON.")
+        exit()
+        # Step 3: Process JSON to extract graph data and save as a `.pkl` file
         graphs = process.json_process(PATHS.cpg, json_file)
         if graphs is None:
-            print(f"Dataset chunk {s} not processed.")
+            print(f"Dataset chunk {s} not processed due to missing or empty graphs.")
             continue
         dataset = data.create_with_index(graphs, ["Index", "cpg"])
         dataset = data.inner_join_by_index(slice, dataset)
-        print(f"Writing cpg dataset chunk {s}.")
+        
+        print(f"Writing CPG dataset chunk {s} to .pkl.")
         data.write(dataset, PATHS.cpg, f"{s}_{FILES.cpg}.pkl")
-        del dataset
+
+        # Step 4: Clean up files
+        # Delete temporary `.bin` and `.json` files after writing `.pkl` to free up space
+        os.remove(PATHS.cpg+cpg_file)  # Remove .bin file
+        os.remove(PATHS.cpg+json_file)  # Remove .json file
+        shutil.rmtree(PATHS.joern)  # Clear out any remaining files in the Joern directory
+
+        # Free up memory
+        del dataset, graphs
         gc.collect()
+        
+    print("CPG generation completed.")
+
+
+def CPG_generator_json_error(s, slice):
+    """
+    Generates Code Property Graph (CPG) datasets from raw data, processing one slice at a time.
+    
+    Each slice's `.bin` and `.json` files are deleted after the `.pkl` dataset is created.
+    """
+    context = configs.Create()
+    if os.path.exists(PATHS.joern):
+        shutil.rmtree(PATHS.joern)  # Clear out any remaining files in the Joern directory
+    # Process each slice individually
+    # Step 1: Generate CPG binary file for the current slice
+    data.to_files(slice, PATHS.joern)
+    cpg_file = process.joern_parse(context.joern_cli_dir, PATHS.joern, PATHS.cpg, f"{s}_{FILES.cpg}")
+    print(f"Dataset {s} parsed to cpg binary file.")
+
+    # Step 2: Create CPG with graphs JSON file
+    json_file = process.joern_create(context.joern_cli_dir, PATHS.cpg, PATHS.cpg, [cpg_file])[0]
+    print(f"CPG binary file for dataset {s} converted to JSON.")
+
+    # Step 3: Process JSON to extract graph data and save as a `.pkl` file
+    graphs = process.json_process(PATHS.cpg, json_file)
+
+    # Step 4: Clean up files
+    # Delete temporary `.bin` and `.json` files after writing `.pkl` to free up space
+    os.remove(PATHS.cpg+cpg_file)  # Remove .bin file
+    shutil.rmtree(PATHS.joern)  # Clear out any remaining files in the Joern directory
+
+    return graphs
+
 
 def Embed_generator():
     """
@@ -314,7 +405,7 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    Embed_generator()
+    # Embed_generator()
     ### 
 
     '''
@@ -324,7 +415,7 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    # train_loader, val_loader, test_loader = Load_input_dataset()
+    train_loader, val_loader, test_loader = Load_input_dataset()
     ###
 
     '''
@@ -334,8 +425,8 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    # path_output_model = "data/model/vinz_Vul-LMGNN_model"
-    # Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model)
+    path_output_model = "data/model/vinz_Vul-LMGNN_model"
+    Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model)
     ### 
 
     '''
@@ -345,5 +436,5 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    # Testing_Vul_LMGNN(test_loader)
+    Testing_Vul_LMGNN(test_loader)
     ###
