@@ -80,3 +80,9 @@ def test(model, device, test_loader):
     #     test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
 
     return accuracy, precision, recall, f1
+
+'''
+How to read Confusion Matrix for binary classification
+[[TN   FP]
+ [ FN   TP]]
+'''

@@ -43,7 +43,7 @@ def train(model, device, train_loader, optimizer, epoch):
         # print(f"=== LOSS in train() backward: {loss}")
         
 #         if (batch_idx + 1) % 100 == 0:
-        print('Train Epoch: {} [{}/{} ({:.2f}%)]/t Loss: {:.6f}'.format(epoch, (batch_idx + 1) * len(batch),
+    print('Train Epoch: {} [{}/{} ({:.2f}%)]/t Loss: {:.6f}'.format(epoch, (batch_idx + 1) * len(batch),
                                                                             len(train_loader.dataset),
                                                                             100. * batch_idx / len(train_loader),
                                                                             loss.item()))
@@ -201,7 +201,7 @@ from models.ivdetect import IVDetectModel
 
 # Initialize the model and optimizer
 model = IVDetectModel().to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=0.0001)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=0.00001)
 # Train the model
 best_acc = 0.0
 NUM_EPOCHS = 3

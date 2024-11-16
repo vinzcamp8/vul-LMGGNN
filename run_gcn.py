@@ -1,16 +1,12 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve, auc
-import seaborn as sns
 import torch
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import configs
 import torch
 import torch.nn.functional as F
 from utils.data.datamanager import loads, train_val_test_split
-from models.LMGNN import BertGGCN
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-import matplotlib.pyplot as plt
+from torch_geometric.nn import GCNConv, global_mean_pool
 
 def train(model, device, train_loader, optimizer, epoch):
     """
@@ -68,8 +64,8 @@ def validate(model, device, test_loader):
         with torch.no_grad():
             y_ = model(batch.x, batch.edge_index, batch.batch)
 
-        # batch.y = batch.y.squeeze().long()
-        batch.y = batch.y.long()
+        batch.y = batch.y.squeeze().long()
+        # batch.y = batch.y.long()
         test_loss += F.cross_entropy(y_, batch.y).item()
         pred = y_.max(-1, keepdim=True)[1]
 
@@ -89,14 +85,6 @@ def validate(model, device, test_loader):
     cm = confusion_matrix(y_true, y_pred)
     print("=== Validation confusion matrix: ")
     print(cm)
-
-
-    # plt.figure(figsize=(8, 6))
-    # sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=['benign', 'malware'], yticklabels=['benign', 'malware'])
-    # plt.xlabel('Predicted')
-    # plt.ylabel('True')
-    # plt.title('Confusion Matrix')
-    # plt.savefig('confusion_matrix.png')
 
     print('Validation set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
         test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
@@ -123,8 +111,8 @@ def test(model, device, test_loader):
         with torch.no_grad():
             y_ = model(batch.x, batch.edge_index, batch.batch)
 
-        # batch.y = batch.y.squeeze().long()
-        batch.y = batch.y.long()
+        batch.y = batch.y.squeeze().long()
+        # batch.y = batch.y.long()
         test_loss += F.cross_entropy(y_, batch.y).item()
 
         pred = y_.max(-1, keepdim=True)[1]
@@ -144,30 +132,6 @@ def test(model, device, test_loader):
     cm = confusion_matrix(y_true, y_pred) 
     print("=== Test confusion matrix: ")
     print(cm)
-
-    # plt.figure(figsize=(8, 6))
-    # sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=['benign', 'malware'],
-    #             yticklabels=['benign', 'malware'])
-    # plt.xlabel('Predicted')
-    # plt.ylabel('True')
-    # plt.title('Confusion Matrix')
-    # plt.savefig('confusion_matrix.png')
-
-    # y_true = np.nan_to_num(0)
-    # y_probs = np.nan_to_num(0)
-    # fpr, tpr, _ = roc_curve(y_true, y_probs)
-    # roc_auc = auc(fpr, tpr)
-
-    # plt.figure()
-    # plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-    # plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    # plt.xlim([0.0, 1.0])
-    # plt.ylim([0.0, 1.05])
-    # plt.xlabel('False Positive Rate')
-    # plt.ylabel('True Positive Rate')
-    # plt.title('Receiver Operating Characteristic (ROC) Curve')
-    # plt.legend(loc='lower right')
-    # plt.savefig('roc_curve.png')
 
     results_array = np.column_stack((y_true, y_pred, y_probs))
     header_text = "True label, Predicted label, Predicted Probability"
@@ -198,15 +162,34 @@ train_loader, val_loader, test_loader = list(
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-from models.reveal import Reveal
+# Define the Graph Convolutional Network (GCN) model
+import torch.nn as nn
 
-# Initialize the model and optimizer
-model = Reveal().to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=0.00001)
+class GCN(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(GCN, self).__init__()
+        self.conv1 = GCNConv(input_dim, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, output_dim)
+
+    def forward(self, x, edge_index, batch):
+        x = self.conv1(x, edge_index)
+        x = F.relu(x)
+        x = self.conv2(x, edge_index)
+        x = global_mean_pool(x, batch)
+        return F.log_softmax(x, dim=1)
+
+# Initialize the model, optimizer, and loss function
+input_dim = 769
+hidden_dim = 64
+output_dim = 2
+
+model = GCN(input_dim, hidden_dim, output_dim).to(device)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.01, weight_decay=0.001)
+
 # Train the model
 best_acc = 0.0
-NUM_EPOCHS = 3
-PATH = "data/model/vinz_reveal_model.pth"
+NUM_EPOCHS = 10
+PATH = "data/model/vinz_gcn_model.pth"
 for epoch in range(1, NUM_EPOCHS + 1):
     train(model, device, train_loader, optimizer, epoch)
     acc, precision, recall, f1 = validate(model, DEVICE, val_loader)
@@ -216,6 +199,6 @@ for epoch in range(1, NUM_EPOCHS + 1):
     print("====== Acc is: {:.4f}, best acc is {:.4f}n".format(acc, best_acc))
 
 # Test the model
-model_test = Reveal().to(device)
+model_test = GCN(input_dim, hidden_dim, output_dim).to(device)
 model_test.load_state_dict(torch.load(PATH))
 accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader)

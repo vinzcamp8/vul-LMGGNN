@@ -85,18 +85,19 @@ def inner_join_by_index(df1, df2):
 
 
 def train_val_test_split(data_frame: pd.DataFrame, shuffle=True):
-    print("Splitting Dataset")
+    print("=== Splitting Dataset ===")
+    print(f"=== Total samples: {len(data_frame)} ===")
     
     false = data_frame[data_frame.target == 0]
     true = data_frame[data_frame.target == 1]
-    print(f"False: {len(false)}")
-    print(f"True: {len(true)}")
+    print(f"=== Non-vuln samples (False): {len(false)} ===")
+    print(f"=== Vuln samples (True): {len(true)} ===")
+    
     train_false, test_false = train_test_split(false, test_size=0.2, shuffle=shuffle)
     test_false, val_false = train_test_split(test_false, test_size=0.5, shuffle=shuffle)
     train_true, test_true = train_test_split(true, test_size=0.2, shuffle=shuffle)
     test_true, val_true = train_test_split(test_true, test_size=0.5, shuffle=shuffle)
 
-    print(f"=== train_val_test_split ===")
     # run = train_false.append(train_true)
     train = pd.concat([train_false, train_true])
     print(f"=== Train: {len(train)} ===")
@@ -112,7 +113,7 @@ def train_val_test_split(data_frame: pd.DataFrame, shuffle=True):
     train = train.reset_index(drop=True)
     val = val.reset_index(drop=True)
     test = test.reset_index(drop=True)
-    print(f"=== After reset_index: Train: {len(train)} Val: {len(val)}  Test {len(test)} ===")
+
     return InputDataset(train), InputDataset(test), InputDataset(val)
 
 

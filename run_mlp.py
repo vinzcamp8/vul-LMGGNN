@@ -1,52 +1,30 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve, auc
-import seaborn as sns
 import torch
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import configs
 import torch
 import torch.nn.functional as F
 from utils.data.datamanager import loads, train_val_test_split
-from models.LMGNN import BertGGCN
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-import matplotlib.pyplot as plt
 
 def train(model, device, train_loader, optimizer, epoch):
-    """
-    Trains the model using the provided data.
-
-    :param model: The model to be trained.
-    :param device: The device to perform training on (e.g., 'cpu' or 'cuda').
-    :param train_loader: The data loader containing the training data.
-    :param optimizer: The optimizer used for training.
-    :param epoch: The current epoch number.
-    :return: None
-    """
-
     model.train()
-    best_acc = 0.0
     for batch_idx, batch in enumerate(train_loader):
         batch.to(device)
 
-        y_pred = model(batch.x, batch.edge_index, batch.batch)
+        y_pred = model(batch.x, batch.edge_index, batch.batch)  # Graph-level prediction
         model.zero_grad()
 
-        # print("=== in train() y_pred min/max: ", y_pred.min().item(), y_pred.max().item())
-  
-        batch.y = batch.y.squeeze().long() ### CODICE ORIGINALE
-#         batch.y = batch.y.long()
-        
-        loss = F.cross_entropy(y_pred, batch.y)
+        batch.y = batch.y.squeeze().long()
+        loss = F.cross_entropy(y_pred, batch.y)  # Now batch_size matches
         loss.backward()
         optimizer.step()
-        # print(f"=== LOSS in train() backward: {loss}")
-        
-#         if (batch_idx + 1) % 100 == 0:
-    print('Train Epoch: {} [{}/{} ({:.2f}%)]/t Loss: {:.6f}'.format(epoch, (batch_idx + 1) * len(batch),
-                                                                            len(train_loader.dataset),
-                                                                            100. * batch_idx / len(train_loader),
-                                                                            loss.item()))
+
+    print('Train Epoch: {} [{}/{} ({:.2f}%)]\tLoss: {:.6f}'.format(
+        epoch, (batch_idx + 1) * len(batch),
+        len(train_loader.dataset), 100. * batch_idx / len(train_loader),
+        loss.item()))
+
 
 
 def validate(model, device, test_loader):
@@ -66,7 +44,7 @@ def validate(model, device, test_loader):
     for batch_idx, batch in enumerate(test_loader):
         batch.to(device)
         with torch.no_grad():
-            y_ = model(batch.x, batch.edge_index, batch.batch)
+            y_ = model(batch.x, batch.edge_index, batch.batch)  # Graph-level prediction
 
         # batch.y = batch.y.squeeze().long()
         batch.y = batch.y.long()
@@ -89,14 +67,6 @@ def validate(model, device, test_loader):
     cm = confusion_matrix(y_true, y_pred)
     print("=== Validation confusion matrix: ")
     print(cm)
-
-
-    # plt.figure(figsize=(8, 6))
-    # sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=['benign', 'malware'], yticklabels=['benign', 'malware'])
-    # plt.xlabel('Predicted')
-    # plt.ylabel('True')
-    # plt.title('Confusion Matrix')
-    # plt.savefig('confusion_matrix.png')
 
     print('Validation set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
         test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
@@ -145,30 +115,6 @@ def test(model, device, test_loader):
     print("=== Test confusion matrix: ")
     print(cm)
 
-    # plt.figure(figsize=(8, 6))
-    # sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=['benign', 'malware'],
-    #             yticklabels=['benign', 'malware'])
-    # plt.xlabel('Predicted')
-    # plt.ylabel('True')
-    # plt.title('Confusion Matrix')
-    # plt.savefig('confusion_matrix.png')
-
-    # y_true = np.nan_to_num(0)
-    # y_probs = np.nan_to_num(0)
-    # fpr, tpr, _ = roc_curve(y_true, y_probs)
-    # roc_auc = auc(fpr, tpr)
-
-    # plt.figure()
-    # plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-    # plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    # plt.xlim([0.0, 1.0])
-    # plt.ylim([0.0, 1.05])
-    # plt.xlabel('False Positive Rate')
-    # plt.ylabel('True Positive Rate')
-    # plt.title('Receiver Operating Characteristic (ROC) Curve')
-    # plt.legend(loc='lower right')
-    # plt.savefig('roc_curve.png')
-
     results_array = np.column_stack((y_true, y_pred, y_probs))
     header_text = "True label, Predicted label, Predicted Probability"
     np.savetxt('reveal_results.txt', results_array, fmt='%1.6f', delimiter='\t', header=header_text)
@@ -198,24 +144,53 @@ train_loader, val_loader, test_loader = list(
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-from models.reveal import Reveal
+import torch
+import torch.nn.functional as F
+from torch.nn import Linear, Sequential, ReLU
+import torch_geometric.nn as pyg_nn
 
-# Initialize the model and optimizer
-model = Reveal().to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=0.00001)
-# Train the model
-best_acc = 0.0
+class MLP(torch.nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_classes):
+        super(MLP, self).__init__()
+        self.model = Sequential(
+            Linear(input_dim, hidden_dim),
+            ReLU(),
+            Linear(hidden_dim, hidden_dim),
+            ReLU(),
+            Linear(hidden_dim, num_classes)
+        )
+        self.pool = pyg_nn.global_mean_pool  # Replace with desired pooling method
+
+    def forward(self, x, edge_index=None, batch=None):
+        x = self.model(x)
+        if batch is not None:
+            x = self.pool(x, batch)  # Pool node-level features to graph-level
+        return x
+
+
+# Set the input dimensions for the MLP
+INPUT_DIM = train_loader.dataset[0].x.size(1)  # Feature vector size
+HIDDEN_DIM = 128  # Hidden layer size
+NUM_CLASSES = len(torch.unique(torch.cat([data.y for data in train_loader.dataset])))
+
+# Initialize the model, optimizer, and loss function
+mlp_model = MLP(INPUT_DIM, HIDDEN_DIM, NUM_CLASSES).to(device)
+mlp_optimizer = torch.optim.AdamW(mlp_model.parameters(), lr=0.0001, weight_decay=0.00001)
+
+# Training loop for MLP
+BEST_ACC = 0.0
+MLP_PATH = "data/model/mlp_baseline.pth"
 NUM_EPOCHS = 3
-PATH = "data/model/vinz_reveal_model.pth"
-for epoch in range(1, NUM_EPOCHS + 1):
-    train(model, device, train_loader, optimizer, epoch)
-    acc, precision, recall, f1 = validate(model, DEVICE, val_loader)
-    if best_acc <= acc:
-        best_acc = acc
-        torch.save(model.state_dict(), PATH)
-    print("====== Acc is: {:.4f}, best acc is {:.4f}n".format(acc, best_acc))
 
-# Test the model
-model_test = Reveal().to(device)
-model_test.load_state_dict(torch.load(PATH))
-accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader)
+for epoch in range(1, NUM_EPOCHS + 1):
+    train(mlp_model, device, train_loader, mlp_optimizer, epoch)
+    acc, precision, recall, f1 = validate(mlp_model, DEVICE, val_loader)
+    if BEST_ACC <= acc:
+        BEST_ACC = acc
+        torch.save(mlp_model.state_dict(), MLP_PATH)
+    print("====== MLP Acc: {:.4f}, Best MLP Acc: {:.4f}".format(acc, BEST_ACC))
+
+# Test the MLP model
+mlp_test = MLP(INPUT_DIM, HIDDEN_DIM, NUM_CLASSES).to(device)
+mlp_test.load_state_dict(torch.load(MLP_PATH))
+accuracy, precision, recall, f1 = test(mlp_test, DEVICE, test_loader)

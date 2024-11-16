@@ -405,7 +405,7 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    # Embed_generator()
+    Embed_generator()
     ### 
 
     '''
@@ -415,7 +415,7 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    train_loader, val_loader, test_loader = Load_input_dataset()
+    # train_loader, val_loader, test_loader = Load_input_dataset()
     ###
 
     '''
@@ -425,8 +425,8 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    path_output_model = "data/model/vinz_Vul-LMGNN_model"
-    Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model)
+    # path_output_model = "data/model/vinz_Vul-LMGNN_model"
+    # Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model)
     ### 
 
     '''

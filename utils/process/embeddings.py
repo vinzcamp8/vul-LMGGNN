@@ -3,9 +3,9 @@ import torch
 from torch_geometric.data import Data
 from utils.functions import tokenizer
 from utils.functions import log as logger
-from gensim.models.keyedvectors import Word2VecKeyedVectors
 from models.layers import encode_input
 from transformers import RobertaTokenizer, RobertaModel
+import gc
 
 class NodesEmbedding:
     def __init__(self, nodes_dim: int):
@@ -41,39 +41,57 @@ class NodesEmbedding:
         codes = []
 
         for n_id, node in nodes.items():
-            try:
-                # Get node's code
-                node_type = node.type
-                node_code = node.get_code()
-                tokenized_code = tokenizer(node_code, True)
+            # Get node's code
+            node_type = node.type
+            node_code = node.get_code()
+            tokenized_code = tokenizer(node_code, True)
+            valid_embedding = False
+            while not valid_embedding:
+                try:
+                    if len(tokenized_code) == 0:
+                        raise ValueError("Empty tokenized code")
 
-                # Tokenize the code
-                input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
+                    # Tokenize the code
+                    input_ids, attention_mask = encode_input(tokenized_code, self.tokenizer_bert)
+                    # if code is '' -> ValueError: You should supply an encoding or a list of encodings to this method that includes input_ids, but you provided []
 
-                # Get embeddings using the BERT model
-                cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
-                source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
+                    # Get embeddings using the BERT model
+                    cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
+                    # if cuda out of memory -> RuntimeError: CUDA out of memory. Tried to allocate 20.00 MiB (GPU 0; 15.90 GiB total capacity; 14.68 GiB already allocated; 0 bytes free; 14.69 GiB reserved in total by PyTorch)
+                    source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
 
-                # Concatenate the node type with the source embeddings
-                embedding = np.concatenate((np.array([node_type]), source_embedding), axis=0)
-                embeddings.append(embedding)
-                types.append(node_type)
-                codes.append(node_code)
+                    # Concatenate the node type with the source embeddings
+                    embedding = np.concatenate((np.array([node_type]), source_embedding), axis=0)
+                    valid_embedding = True
 
-                # Delete the tensors from GPU and free up memory
-                del input_ids, attention_mask, cls_feats
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()  # Optional: consider removing if it impacts performance
+                    # Delete the tensors from GPU and free up memory
+                    del input_ids, attention_mask, cls_feats
+                    gc.collect()
+                    if self.device.type == 'cuda':
+                        torch.cuda.empty_cache()  
+                        # print(torch.cuda.memory_summary(device=None, abbreviated=False))
 
-            except Exception as e:
-                # Handle any exceptions and save the node only with its type
-                print(f"embeddings - Error processing node {n_id}: {e}")
-                print(f"Node code: {node_code}")
-                source_embedding = np.zeros(self.bert_model.config.hidden_size)
-                embedding = np.concatenate((np.array([node.type]), source_embedding), axis=0)
-                embeddings.append(embedding)
-                codes.append(node_code)
-                continue
+                except RuntimeError:
+                    # Handle CUDA out of memory exception reducing the tokenized code         
+                    gc.collect()    
+                    if self.device.type == 'cuda':
+                        torch.cuda.empty_cache()
+                    if len(tokenized_code) > 15:
+                        tokenized_code = tokenized_code[len(tokenized_code)//2 - 7: len(tokenized_code)//2 + 8]
+                    elif len(tokenized_code) % 2 == 0:
+                        tokenized_code = tokenized_code[1:]
+                    else:
+                        tokenized_code = tokenized_code[:-1]
+                    # print(f"Reducing tokenized code to {len(tokenized_code)} \nNode ID: {n_id} \nNode code: {node_code}")
+                except Exception as e:
+                    # Handle any exceptions and save the node only with its type
+                    # print(f"embeddings - {type(e).__name__}: {e} \nNode ID: {n_id} \nNode code: {node_code}")
+                    source_embedding = np.zeros(self.bert_model.config.hidden_size)
+                    embedding = np.concatenate((np.array([node_type]), source_embedding), axis=0)
+                    valid_embedding = True
+            embeddings.append(embedding)
+            types.append(node_type)
+            codes.append(node_code)
                 
         return np.array(embeddings), types, codes
 
@@ -119,7 +137,7 @@ class GraphsEmbedding:
 #                 print(f"=== Nodes connectivity - edge.type: {edge.type} self.edge_type:{self.edge_type}")
 #                 if edge.type != self.edge_type:
 #                     continue
-                # print(f"=== Nodes connectivity - edge: in {edge.node_in} out {edge.node_out} ")
+                # print(f"=== Nodes connectivity - edge: in {edge.node_in} - out {edge.node_out} ")
                 # print(f"=== Nodes connectivity - nodes: {nodes} ")
                 # print(f"=== Nodes connectivity - node id: {node_id} ")
                 if edge.node_in in nodes and edge.node_in != node_id:
@@ -139,7 +157,7 @@ def nodes_to_input(nodes, target, nodes_dim, edge_type):
     edge_index =  graphs_embedding(nodes)
     
     if (len(edge_index[0]) + len(edge_index[1])) == 0:
-        print(f"=== nodes_to_input - No edges found, sample skipping... ===")
+        # print(f"=== nodes_to_input - No edges found, sample skipping... ===")
         return None
     
     nodes_embedding = NodesEmbedding(nodes_dim)
