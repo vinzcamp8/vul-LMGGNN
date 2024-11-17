@@ -7,6 +7,8 @@ from models.layers import encode_input
 from transformers import RobertaTokenizer, RobertaModel
 import gc
 
+cache = {}
+
 class NodesEmbedding:
     def __init__(self, nodes_dim: int):
         # self.w2v_keyed_vectors = w2v_keyed_vectors
@@ -40,15 +42,33 @@ class NodesEmbedding:
         types = []
         codes = []
 
+        def get_cached_embedding(tokenized_code):
+            code_str = ' '.join(tokenized_code)
+            if code_str in cache:
+                # print(f"Cache hit for {code_str}")
+                return cache[code_str]
+            return None
+
+        def set_cached_embedding(tokenized_code, embedding):
+            # print(f"Setting cache for {' '.join(tokenized_code)}")
+            code_str = ' '.join(tokenized_code)
+            cache[code_str] = embedding
+
         for n_id, node in nodes.items():
             # Get node's code
             node_type = node.type
             node_code = node.get_code()
             tokenized_code = tokenizer(node_code, True)
-            valid_embedding = False
+            cached = get_cached_embedding(tokenized_code)
+            if cached is not None:
+                source_embedding = cached
+                valid_embedding = True
+            else:
+                valid_embedding = False
             while not valid_embedding:
                 try:
-                    if len(tokenized_code) == 0:
+                    length = len(tokenized_code)
+                    if length == 0:
                         raise ValueError("Empty tokenized code")
 
                     # Tokenize the code
@@ -59,9 +79,8 @@ class NodesEmbedding:
                     cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
                     # if cuda out of memory -> RuntimeError: CUDA out of memory. Tried to allocate 20.00 MiB (GPU 0; 15.90 GiB total capacity; 14.68 GiB already allocated; 0 bytes free; 14.69 GiB reserved in total by PyTorch)
                     source_embedding = np.mean(cls_feats.cpu().detach().numpy(), 0)
+                    set_cached_embedding(tokenized_code, source_embedding)
 
-                    # Concatenate the node type with the source embeddings
-                    embedding = np.concatenate((np.array([node_type]), source_embedding), axis=0)
                     valid_embedding = True
 
                     # Delete the tensors from GPU and free up memory
@@ -76,9 +95,9 @@ class NodesEmbedding:
                     gc.collect()    
                     if self.device.type == 'cuda':
                         torch.cuda.empty_cache()
-                    if len(tokenized_code) > 15:
-                        tokenized_code = tokenized_code[len(tokenized_code)//2 - 7: len(tokenized_code)//2 + 8]
-                    elif len(tokenized_code) % 2 == 0:
+                    if length > 13:
+                        tokenized_code = tokenized_code[length//2 - 6: length//2 + 7]
+                    elif length % 2 == 0:
                         tokenized_code = tokenized_code[1:]
                     else:
                         tokenized_code = tokenized_code[:-1]
@@ -87,8 +106,9 @@ class NodesEmbedding:
                     # Handle any exceptions and save the node only with its type
                     # print(f"embeddings - {type(e).__name__}: {e} \nNode ID: {n_id} \nNode code: {node_code}")
                     source_embedding = np.zeros(self.bert_model.config.hidden_size)
-                    embedding = np.concatenate((np.array([node_type]), source_embedding), axis=0)
                     valid_embedding = True
+            # Concatenate the node type with the source embeddings
+            embedding = np.concatenate((np.array([node_type]), source_embedding), axis=0)
             embeddings.append(embedding)
             types.append(node_type)
             codes.append(node_code)
