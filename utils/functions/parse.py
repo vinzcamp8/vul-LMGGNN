@@ -125,7 +125,15 @@ def tokenizer(code, flag=False):
     code = no_char_lit_line
 
     if flag:
-        code = codecs.getdecoder("unicode_escape")(no_char_lit_line)[0]
+        decode_flag = True
+        while decode_flag:
+            try:
+                code = codecs.getdecoder("unicode_escape")(no_char_lit_line)[0]
+                decode_flag = False  # Exit the loop if decoding is successful
+            except UnicodeDecodeError as e:
+                # Remove the problematic character
+                pos = e.start
+                no_char_lit_line = no_char_lit_line[:pos] + no_char_lit_line[pos + 1:]
 
     for line in code.splitlines():
         if line == '':
