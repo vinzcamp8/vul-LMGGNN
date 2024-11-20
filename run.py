@@ -13,7 +13,7 @@ from utils.data.datamanager import loads, train_val_test_split
 from models.LMGNN import BertGGCN
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import matplotlib.pyplot as plt
-from test import test
+from test import *
 from utils.data.check_bin_json import find_bin_without_json, find_json
 import os
 
@@ -286,21 +286,21 @@ def validate(model, device, test_loader):
     f1 = f1_score(y_true, y_pred)
 
     cm = confusion_matrix(y_true, y_pred)
+    print('Validation Confusion Matrix:')
+    print(cm)
 
-    plt.figure(figsize=(8, 6))
-    # sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=['benign', 'malware'], yticklabels=['benign', 'malware'])
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.title('Confusion Matrix')
-    plt.savefig('confusion_matrix.png')
 
-    print('Test set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
+    print('Validation set - Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
         test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
 
     return accuracy, precision, recall, f1
 
-def Load_input_dataset():
+def Dataloaders(save=False):
     context = configs.Process()
+    if save:
+        path = f"input/bs_{context.batch_size}/"
+        os.makedirs(path)
+
     input_dataset = loads(PATHS.input)
 
     # # remove samples without edges
@@ -314,7 +314,12 @@ def Load_input_dataset():
         map(lambda x: x.get_loader(context.batch_size, shuffle=context.shuffle),
             train_val_test_split(input_dataset, shuffle=context.shuffle)))
     
-    print(f'=== run.py - DataLoader: {len(train_loader)} {len(val_loader)} {len(test_loader)} ====')
+    print(f'=== run.py - DataLoaders: {len(train_loader)} {len(val_loader)} {len(test_loader)} ====')
+
+    if save:
+        torch.save(train_loader, f"{path}/train_loader.pth")
+        torch.save(val_loader, f"{path}/val_loader.pth")
+        torch.save(test_loader, f"{path}/test_loader.pth")
 
     return train_loader, val_loader, test_loader
 
@@ -329,9 +334,6 @@ def Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model):
     model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=Bertggnn.learning_rate, weight_decay=Bertggnn.weight_decay)
 
-    best_acc = 0.0
-    best_precision = 0.0
-    best_recall = 0.0
     best_f1 = 0.0
     NUM_EPOCHS = context.epochs
     PATH = path_output_model
@@ -339,26 +341,12 @@ def Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model):
         
         train(model, device, train_loader, optimizer, epoch)
         acc, precision, recall, f1 = validate(model, DEVICE, val_loader)
+        print(f"Validation - Epoch {epoch} -", "acc: {:.4f}, prec: {:.4f}, recall: {:.4f}, f1: {:.4f}".format(acc, precision, recall, f1))
 
-        if best_acc <= acc:
-            best_acc = acc
-            torch.save(model.state_dict(), str(PATH + "_acc"))
-            print(f"Epoch {epoch} -", "acc is: {:.4f}, best acc is {:.4f}n".format(acc, best_acc))
-        
-        if best_precision <= precision:
-            best_precision = precision
-            torch.save(model.state_dict(), str(PATH + "_precision"))
-            print(f"Epoch {epoch} -", "precision is: {:.4f}, best precision is {:.4f}n".format(precision, best_precision))
-        
-        if best_recall <= recall:
-            best_recall = recall
-            torch.save(model.state_dict(), str(PATH + "_recall"))
-            print(f"Epoch {epoch} -", "recall is: {:.4f}, best recall is {:.4f}n".format(recall, best_recall))
-        
-        if best_f1 <= f1:
+        if f1 > 0 and best_f1 <= f1:
+            print("New best f1 score, before was: {:.4f}\nSaving model...".format(best_f1))
+            torch.save(model.state_dict(), str(PATH))
             best_f1 = f1
-            torch.save(model.state_dict(), str(PATH + "_f1"))
-            print(f"Epoch {epoch} -", "f1 is: {:.4f}, best f1 is {:.4f}n".format(f1, best_f1))
 
 
 def Testing_Vul_LMGNN(test_loader, model_path):
@@ -369,13 +357,20 @@ def Testing_Vul_LMGNN(test_loader, model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model_test = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
-    # model_test = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device)
     model_test.load_state_dict(torch.load(model_path))
     accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader)
     print(f"=== Testing results: accuracy: {accuracy}, precision: {precision}, recall: {recall}, f1: {f1} ===")
 
 
 if __name__ == '__main__':
+    parser: ArgumentParser = argparse.ArgumentParser()
+    parser.add_argument('-cpg', '--cpg', action="store_true", help='Specify to perform CPG generation task.')
+    parser.add_argument('-embed', '--embed', action="store_true", help='Specify to perform Embedding generation task.')
+    parser.add_argument('-dataloaders', '--dataloaders', default=None, help='Generate DataLoaders from input pkl files. Specify "save" or "not_save".')
+    parser.add_argument('-train', '--train', default=False, help='Start the training process. Specify the Dataloaders "bs_X" to load "True" if just generated.')
+    parser.add_argument('-test', '--test', default=False, help='Start the testing process. Specify the Dataloaders "bs_X" to load or "True" if just generated.')
+    parser.add_argument('-path', '--path', default="data/model/Vul_LMGNN_model.pth", help='Specify the path to save or load the model.')
+    args = parser.parse_args()
 
     '''
     Filter_raw_dataset(), filter raw dataset
@@ -384,7 +379,8 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    # filtered_dataset = Filter_raw_dataset()
+    if args.cpg:
+        filtered_dataset = Filter_raw_dataset()
     ###
 
     '''
@@ -395,7 +391,8 @@ if __name__ == '__main__':
     Note: Joern can print a warning "WARN MemberAccessLinker: Could not find type member." It's normal for code where the type of variable are custom types.
     '''
     ###
-    # CPG_generator(filtered_dataset)
+    if args.cpg:
+        CPG_generator(filtered_dataset)
     ###
 
     '''
@@ -405,7 +402,8 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    Embed_generator()
+    if args.embed:
+        Embed_generator()
     ### 
 
     '''
@@ -415,7 +413,11 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    # train_loader, val_loader, test_loader = Load_input_dataset()
+    if args.dataloaders:
+        if args.dataloaders == "save":
+            train_loader, val_loader, test_loader = Dataloaders(save=True)
+        elif args.dataloaders == "not_save":
+            train_loader, val_loader, test_loader = Dataloaders(save=False)
     ###
 
     '''
@@ -425,8 +427,12 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    # path_output_model = "data/model/vinz_Vul-LMGNN_model"
-    # Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model)
+    if args.train:
+        if not args.dataloaders:
+            train_loader = torch.load(f"input/{args.train}/train_loader.pth")
+            val_loader = torch.load(f"input/{args.train}/val_loader.pth")
+        path_output_model = args.path
+        Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model)
     ### 
 
     '''
@@ -436,5 +442,9 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
-    Testing_Vul_LMGNN(test_loader)
+    if args.test:
+        model_path = args.path
+        if not args.dataloaders:
+            torch.load(f"input/{args.test}/test_loader.pth")
+        Testing_Vul_LMGNN(test_loader, model_path)
     ###
