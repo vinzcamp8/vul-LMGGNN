@@ -12,3 +12,4 @@ joern_analysis
 zip_bin_with_json.py
 run_notebook.ipynb
 input
+data/*

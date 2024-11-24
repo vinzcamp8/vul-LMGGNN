@@ -162,6 +162,7 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     gated_graph_conv_args = Bertggnn.model["gated_graph_conv_args"]
     conv_args = Bertggnn.model["conv_args"]
     emb_size = Bertggnn.model["emb_size"]
+    early_stop_patience = context.patience
 
     learning_rate = Bertggnn.learning_rate
     batch_size = context.batch_size
@@ -174,23 +175,34 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
 
     best_f1 = 0.0
     best_recall = 0.0
+    early_stop_counter = 0 
     path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
     os.makedirs(path_output_model)
+
     for epoch in range(1, epochs + 1):
-        
         train(model, DEVICE, train_loader, optimizer, epoch)
         acc, precision, recall, f1 = validate(model, DEVICE, val_loader, path_output_model)
         print(f"Validation - Epoch {epoch} -", "acc: {:.4f}, prec: {:.4f}, recall: {:.4f}, f1: {:.4f}".format(acc, precision, recall, f1))
 
-        if f1 > 0 and best_f1 <= f1:
-            print("New best f1 score, before was: {:.4f}\nSaving model...".format(best_f1))
-            torch.save(model.state_dict(), str(path_output_model+"vul_lmgnn_f1.pth"))
+        if f1 > best_f1:
+            print("New best F1 score, before was: {:.4f}\nSaving model...".format(best_f1))
+            torch.save(model.state_dict(), str(path_output_model + "vul_lmgnn_f1.pth"))
             best_f1 = f1
-        
-        if recall > 0 and best_recall <= recall:
+            early_stop_counter = 0 
+        else:
+            early_stop_counter += 1
+            # print(f"No improvement in F1 score for {early_stop_counter} consecutive epochs.")
+
+        if recall > best_recall:
             print("New best recall score, before was: {:.4f}\nSaving model...".format(best_recall))
-            torch.save(model.state_dict(), str(path_output_model+"vul_lmgnn_recall.pth"))
+            torch.save(model.state_dict(), str(path_output_model + "vul_lmgnn_recall.pth"))
             best_recall = recall
+
+        # Early stopping condition
+        if early_stop_counter >= early_stop_patience:
+            print(f"Early stopping triggered. No improvement in F1 score for {early_stop_patience} consecutive epochs.")
+            break
+
 
 
 def Testing_Vul_LMGNN(args, test_loader, model_path, model_name):
