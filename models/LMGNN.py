@@ -10,9 +10,9 @@ import numpy as np
 from utils.functions import tokenizer
 
 class BertGGCN(nn.Module):
-    def __init__(self, gated_graph_conv_args, conv_args, emb_size, device):
+    def __init__(self, pred_lambda, gated_graph_conv_args, conv_args, emb_size, device):
         super(BertGGCN, self).__init__()
-        self.k = 0.5
+        self.k = pred_lambda
         
         self.ggnn = GatedGraphConv(**gated_graph_conv_args).to(device)
         self.conv = Conv(**conv_args,
@@ -65,10 +65,10 @@ class BertGGCN(nn.Module):
         pred = (x + 1e-10) * self.k + cls_logit * (1 - self.k)
 
         # Ensure pred is strictly positive 
-        pred = th.clamp(pred, min=1e-10)
+        # pred = th.clamp(pred, min=1e-10) 
 
         # Apply logarithm safely
-        pred = th.log(pred)
+        # pred = th.log(pred)
 
         return pred
 
@@ -78,6 +78,7 @@ class BertGGCN(nn.Module):
     # first list = number of samples in a single batch (batch_size)
     # second list = fixed number of nodes (205) 
     '''
+    ### TO UPDATE if it should be used
     def update_nodes(self, data):
         embeddings = []
         i = 0

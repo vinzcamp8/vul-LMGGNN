@@ -8,13 +8,9 @@ import utils.process as process
 import utils.functions.cpg_mod as cpg
 import torch
 import pandas as pd
-import torch.nn.functional as F
 from utils.data.datamanager import loads, train_val_test_split
 from models.LMGNN import BertGGCN
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-import matplotlib.pyplot as plt
-from test import *
-from utils.data.check_bin_json import find_bin_without_json, find_json
+from utils.process.training_val_test import train, validate, test
 import os
 
 '''
@@ -56,52 +52,6 @@ def Filter_raw_dataset():
 
     return filtered
 
-# def CPG_generator(filtered_dataset):
-#     """
-#     Generates Code Property Graph (CPG) datasets from raw data.
-
-#     :return: None
-#     """
-#     context = configs.Create()
-
-#     slices = data.slice_frame(filtered_dataset, context.slice_size)
-#     slices = [(s, slice.apply(lambda x: x)) for s, slice in slices] # it create a list of tuples (index, dataframe)
-
-#     cpg_files = []
-#     # Create CPG binary files
-#     for s, slice in slices:
-#         # s: index of the slice, slice: dataframe
-#         data.to_files(slice, PATHS.joern)
-#         cpg_file = process.joern_parse(context.joern_cli_dir, PATHS.joern, PATHS.cpg, f"{s}_{FILES.cpg}")
-#         cpg_files.append(cpg_file)
-#         print(f"Dataset {s} to cpg.")
-#         shutil.rmtree(PATHS.joern)
-
-#     # # Load CPG binary files               (used for memory issues)
-#     # cpg_files = find_bin_without_json(PATHS.cpg)
-
-#     # Create CPG with graphs json files
-#     json_files = process.joern_create(context.joern_cli_dir, PATHS.cpg, PATHS.cpg, cpg_files)
-    
-#     # # Load CPG json files                 (used for memory issues)
-#     # json_files = find_json(PATHS.cpg)
-#     # print(len(slices), len(json_files))
-#     # slices = slices[-345:]
-#     # print(len(slices))
-
-#     # Clean json and create CPG datasets
-#     for (s, slice), json_file in zip(slices, json_files):
-#         graphs = process.json_process(PATHS.cpg, json_file)
-#         if graphs is None:
-#             print(f"Dataset chunk {s} not processed.")
-#             continue
-#         dataset = data.create_with_index(graphs, ["Index", "cpg"])
-#         dataset = data.inner_join_by_index(slice, dataset)
-#         print(f"Writing cpg dataset chunk {s}.")
-#         data.write(dataset, PATHS.cpg, f"{s}_{FILES.cpg}.pkl")
-#         del dataset
-#         gc.collect()
-
 def CPG_generator(filtered_dataset):
     """
     Generates Code Property Graph (CPG) datasets from raw data, processing one slice at a time.
@@ -113,7 +63,7 @@ def CPG_generator(filtered_dataset):
     slices = [(s, slice.apply(lambda x: x)) for s, slice in slices] # it create a list of tuples (index, dataframe)
     if os.path.exists(PATHS.joern):
         shutil.rmtree(PATHS.joern)  # Clear out any remaining files in the Joern directory
-    slices = slices[8:]
+
     # Process each slice individually
     for s, slice in slices:
         # Step 1: Generate CPG binary file for the current slice
@@ -149,36 +99,6 @@ def CPG_generator(filtered_dataset):
     print("CPG generation completed.")
 
 
-def CPG_generator_json_error(s, slice):
-    """
-    Generates Code Property Graph (CPG) datasets from raw data, processing one slice at a time.
-    
-    Each slice's `.bin` and `.json` files are deleted after the `.pkl` dataset is created.
-    """
-    context = configs.Create()
-    if os.path.exists(PATHS.joern):
-        shutil.rmtree(PATHS.joern)  # Clear out any remaining files in the Joern directory
-    # Process each slice individually
-    # Step 1: Generate CPG binary file for the current slice
-    data.to_files(slice, PATHS.joern)
-    cpg_file = process.joern_parse(context.joern_cli_dir, PATHS.joern, PATHS.cpg, f"{s}_{FILES.cpg}")
-    print(f"Dataset {s} parsed to cpg binary file.")
-
-    # Step 2: Create CPG with graphs JSON file
-    json_file = process.joern_create(context.joern_cli_dir, PATHS.cpg, PATHS.cpg, [cpg_file])[0]
-    print(f"CPG binary file for dataset {s} converted to JSON.")
-
-    # Step 3: Process JSON to extract graph data and save as a `.pkl` file
-    graphs = process.json_process(PATHS.cpg, json_file)
-
-    # Step 4: Clean up files
-    # Delete temporary `.bin` and `.json` files after writing `.pkl` to free up space
-    os.remove(PATHS.cpg+cpg_file)  # Remove .bin file
-    shutil.rmtree(PATHS.joern)  # Clear out any remaining files in the Joern directory
-
-    return graphs
-
-
 def Embed_generator():
     """
     Generates embeddings from Code Property Graph (CPG) datasets.
@@ -204,110 +124,19 @@ def Embed_generator():
         
         data.drop(cpg_dataset, ["nodes"])
         print(f"=== Saving input dataset {file_name} with size {len(cpg_dataset)}. ===")
-        # write(cpg_dataset[["input", "target"]], PATHS.input, f"{file_name}_{FILES.input}")
-        # write(cpg_dataset[["input", "target","func"]], PATHS.input, f"{file_name}_{FILES.input}")
         data.write(cpg_dataset[["input", "target", "func"]], PATHS.input, f"{file_name}_{FILES.input}")
 
         del cpg_dataset
         gc.collect()
 
-def train(model, device, train_loader, optimizer, epoch):
-    """
-    Trains the model using the provided data.
-
-    :param model: The model to be trained.
-    :param device: The device to perform training on (e.g., 'cpu' or 'cuda').
-    :param train_loader: The data loader containing the training data.
-    :param optimizer: The optimizer used for training.
-    :param epoch: The current epoch number.
-    :return: None
-    """
-
-    model.train()
-    best_acc = 0.0
-    for batch_idx, batch in enumerate(train_loader):
-        batch.to(device)
-
-        y_pred = model(batch)
-        model.zero_grad()
-
-        print("=== in train() y_pred min/max: ", y_pred.min().item(), y_pred.max().item())
-  
-        batch.y = batch.y.squeeze().long() ### CODICE ORIGINALE
-#         batch.y = batch.y.long()
-        
-        loss = F.cross_entropy(y_pred, batch.y)
-        loss.backward()
-        optimizer.step()
-        print(f"=== LOSS in train() backward: {loss}")
-        
-#         if (batch_idx + 1) % 100 == 0:
-        print('Train Epoch: {} [{}/{} ({:.2f}%)]/t Loss: {:.6f}'.format(epoch, (batch_idx + 1) * len(batch),
-                                                                            len(train_loader.dataset),
-                                                                            100. * batch_idx / len(train_loader),
-                                                                            loss.item()))
-
-
-def validate(model, device, test_loader):
-    """
-    Validates the model using the provided test data.
-
-    :param model: The model to be validated.
-    :param device: The device to perform validation on (e.g., 'cpu' or 'cuda').
-    :param test_loader: The data loader containing the test data.
-    :return: Tuple containing accuracy, precision, recall, and F1 score.
-    """
-    model.eval()
-    test_loss = 0.0
-    y_true = []
-    y_pred = []
-
-    for batch_idx, batch in enumerate(test_loader):
-        batch.to(device)
-        with torch.no_grad():
-            y_ = model(batch)
-
-        # batch.y = batch.y.squeeze().long()
-        batch.y = batch.y.long()
-        test_loss += F.cross_entropy(y_, batch.y).item()
-        pred = y_.max(-1, keepdim=True)[1]
-
-        y_true.extend(batch.y.cpu().numpy())
-        y_pred.extend(pred.cpu().numpy())
-
-    try:
-        test_loss /= len(test_loader)
-    except ZeroDivisionError:
-        test_loss = 0.0
-
-    accuracy = accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred)
-    recall = recall_score(y_true, y_pred)
-    f1 = f1_score(y_true, y_pred)
-
-    cm = confusion_matrix(y_true, y_pred)
-    print('Validation Confusion Matrix:')
-    print(cm)
-
-
-    print('Validation set - Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%'.format(
-        test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
-
-    return accuracy, precision, recall, f1
-
-def Dataloaders(save=False):
+def Dataloaders_generator(args, save=False):
     context = configs.Process()
+    context.update_from_args(args)
     if save:
         path = f"input/bs_{context.batch_size}/"
         os.makedirs(path)
 
     input_dataset = loads(PATHS.input)
-
-    # # remove samples without edges
-    # input_dataset = input_dataset[input_dataset['input'].apply(lambda x: x.edge_index.size(1) > 0)]
-    # # standardize feature vector for handle 0 values in node feature vector
-    # for id, data in input_dataset.input.items():
-    #     data.x = (data.x - data.x.mean(dim=0)) / (data.x.std(dim=0) + 1e-6)
 
     # split the dataset and pass to DataLoader with batch size
     train_loader, val_loader, test_loader = list(
@@ -320,45 +149,61 @@ def Dataloaders(save=False):
         torch.save(train_loader, f"{path}/train_loader.pth")
         torch.save(val_loader, f"{path}/val_loader.pth")
         torch.save(test_loader, f"{path}/test_loader.pth")
+        print(f"DataLoaders saved in {path}")
 
     return train_loader, val_loader, test_loader
 
-def Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model):
+def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     context = configs.Process()
+    context.update_from_args(args)
     Bertggnn = configs.BertGGNN()
+    Bertggnn.update_from_args(args)
+
     gated_graph_conv_args = Bertggnn.model["gated_graph_conv_args"]
     conv_args = Bertggnn.model["conv_args"]
     emb_size = Bertggnn.model["emb_size"]
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=Bertggnn.learning_rate, weight_decay=Bertggnn.weight_decay)
+    learning_rate = Bertggnn.learning_rate
+    batch_size = context.batch_size
+    epochs = context.epochs
+    weight_decay = Bertggnn.weight_decay
+    pred_lambda = Bertggnn.pred_lambda
+
+    model = BertGGCN(pred_lambda, gated_graph_conv_args, conv_args, emb_size, DEVICE).to(DEVICE)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     best_f1 = 0.0
-    NUM_EPOCHS = context.epochs
-    PATH = path_output_model
-    for epoch in range(1, NUM_EPOCHS + 1):
+    best_recall = 0.0
+    path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
+    os.makedirs(path_output_model)
+    for epoch in range(1, epochs + 1):
         
-        train(model, device, train_loader, optimizer, epoch)
-        acc, precision, recall, f1 = validate(model, DEVICE, val_loader)
+        train(model, DEVICE, train_loader, optimizer, epoch)
+        acc, precision, recall, f1 = validate(model, DEVICE, val_loader, path_output_model)
         print(f"Validation - Epoch {epoch} -", "acc: {:.4f}, prec: {:.4f}, recall: {:.4f}, f1: {:.4f}".format(acc, precision, recall, f1))
 
         if f1 > 0 and best_f1 <= f1:
             print("New best f1 score, before was: {:.4f}\nSaving model...".format(best_f1))
-            torch.save(model.state_dict(), str(PATH))
+            torch.save(model.state_dict(), str(path_output_model+"vul_lmgnn_f1.pth"))
             best_f1 = f1
+        
+        if recall > 0 and best_recall <= recall:
+            print("New best recall score, before was: {:.4f}\nSaving model...".format(best_recall))
+            torch.save(model.state_dict(), str(path_output_model+"vul_lmgnn_recall.pth"))
+            best_recall = recall
 
 
-def Testing_Vul_LMGNN(test_loader, model_path):
+def Testing_Vul_LMGNN(args, test_loader, model_path, model_name):
     Bertggnn = configs.BertGGNN()
+    Bertggnn.update_from_args(args)
     gated_graph_conv_args = Bertggnn.model["gated_graph_conv_args"]
     conv_args = Bertggnn.model["conv_args"]
     emb_size = Bertggnn.model["emb_size"]
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    pred_lambda = Bertggnn.pred_lambda 
 
-    model_test = BertGGCN(gated_graph_conv_args, conv_args, emb_size, device).to(device)
-    model_test.load_state_dict(torch.load(model_path))
-    accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader)
+    model_test = BertGGCN(pred_lambda, gated_graph_conv_args, conv_args, emb_size, DEVICE).to(DEVICE)
+    model_test.load_state_dict(torch.load(model_path+model_name))
+    accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader, model_path)
     print(f"=== Testing results: accuracy: {accuracy}, precision: {precision}, recall: {recall}, f1: {f1} ===")
 
 
@@ -367,10 +212,25 @@ if __name__ == '__main__':
     parser.add_argument('-cpg', '--cpg', action="store_true", help='Specify to perform CPG generation task.')
     parser.add_argument('-embed', '--embed', action="store_true", help='Specify to perform Embedding generation task.')
     parser.add_argument('-dataloaders', '--dataloaders', default=None, help='Generate DataLoaders from input pkl files. Specify "save" or "not_save".')
-    parser.add_argument('-train', '--train', default=False, help='Start the training process. Specify the Dataloaders "bs_X" to load "True" if just generated.')
-    parser.add_argument('-test', '--test', default=False, help='Start the testing process. Specify the Dataloaders "bs_X" to load or "True" if just generated.')
-    parser.add_argument('-path', '--path', default="data/model/Vul_LMGNN_model.pth", help='Specify the path to save or load the model.')
+    parser.add_argument('-train', '--train', action="store_true", help='Start the training process. Specify hyperparameters.')
+    parser.add_argument('-test', '--test', action="store_true", help='Start the testing process. Specify hyperparameters.')
+    # Hyperparameters
+    parser.add_argument('-learning_rate', '--learning_rate', type=float, help='Hyperparameter: Learning rate for the model.')
+    parser.add_argument('-batch_size', '--batch_size', type=int, help='Hyperparameter: Batch size for training.')
+    parser.add_argument('-epochs', '--epochs', type=int, help='Hyperparameter: Number of epochs for training.')
+    parser.add_argument('-weight_decay', '--weight_decay', type=float, help='Hyperparameter: Weight decay for the optimizer.')
+    parser.add_argument('-patience', '--patience', type=int, help='Hyperparameter: Patience for early stopping.')
+    parser.add_argument('-pred_lambda', '--pred_lambda', type=float, help='Hyperparameter: Lambda for interpolating predictions.')
+    
     args = parser.parse_args()
+    print("Run with args:", args)
+    
+    '''
+    Example of running the script:
+    python3 run.py -cpg -embed -dataloaders save -train -test -path "data/model/vul_lmgnn_model.pth" -learning_rate 0.0001 -batch_size 32 -epochs 10 -weight_decay 0.00001 -patience 5
+    python3 run.py -dataloaders save -batch_size 32
+    python3 run.py -train -test -learning_rate 0.0001 -batch_size 32 -epochs 10 -weight_decay 0.00001 -patience 5 -pred_lambda 0.5
+    '''
 
     '''
     Filter_raw_dataset(), filter raw dataset
@@ -415,9 +275,11 @@ if __name__ == '__main__':
     ###
     if args.dataloaders:
         if args.dataloaders == "save":
-            train_loader, val_loader, test_loader = Dataloaders(save=True)
+            train_loader, val_loader, test_loader = Dataloaders_generator(args, save=True)
         elif args.dataloaders == "not_save":
-            train_loader, val_loader, test_loader = Dataloaders(save=False)
+            train_loader, val_loader, test_loader = Dataloaders_generator(args, save=False)
+        else:
+            exit("Specify 'save' or 'not_save' to save or not the DataLoader objects.")
     ###
 
     '''
@@ -429,10 +291,9 @@ if __name__ == '__main__':
     ###
     if args.train:
         if not args.dataloaders:
-            train_loader = torch.load(f"input/{args.train}/train_loader.pth")
-            val_loader = torch.load(f"input/{args.train}/val_loader.pth")
-        path_output_model = args.path
-        Training_Validation_Vul_LMGNN(train_loader, val_loader, path_output_model)
+            train_loader = torch.load(f"input/bs_{args.batch_size}/train_loader.pth")
+            val_loader = torch.load(f"input/bs_{args.batch_size}/val_loader.pth")
+        Training_Validation_Vul_LMGNN(args, train_loader, val_loader)
     ### 
 
     '''
@@ -443,8 +304,16 @@ if __name__ == '__main__':
     '''
     ###
     if args.test:
-        model_path = args.path
+        model_path = f"{PATHS.model}vul_lmgnn_{args.learning_rate}_{args.batch_size}_{args.epochs}_{args.weight_decay}_{args.pred_lambda}/"
         if not args.dataloaders:
-            torch.load(f"input/{args.test}/test_loader.pth")
-        Testing_Vul_LMGNN(test_loader, model_path)
+            test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
+        
+        model_name = "vul_lmgnn_f1.pth"
+        print("Starting Test of Model:", model_name)
+        Testing_Vul_LMGNN(args, test_loader, model_path, model_name)
+
+        model_name = "vul_lmgnn_recall.pth"
+        print("Starting Test of Model:", model_name)
+        Testing_Vul_LMGNN(args, test_loader, model_path, model_name)
     ###
+

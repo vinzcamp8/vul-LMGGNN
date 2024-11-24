@@ -26,7 +26,7 @@ def get_ratio(dataset, ratio):
 
 def load(path, pickle_file, ratio=1):
     dataset = pd.read_pickle(path + pickle_file)
-    dataset.info(memory_usage='deep')
+    # dataset.info(memory_usage='deep') # print useful info about the dataset
     if ratio < 1:
         dataset = get_ratio(dataset, ratio)
 

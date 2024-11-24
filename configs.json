@@ -2,7 +2,7 @@
     "bertggnn": {
         "learning_rate" : 1e-4,
         "weight_decay" : 1.3e-6,
-        "loss_lambda" : 1.3e-6,
+        "pred_lambda" : 0.5,
         "model": {
             "gated_graph_conv_args": {"out_channels" : 200, "num_layers" : 6, "aggr" : "add", "bias": true},
             "conv_args": {

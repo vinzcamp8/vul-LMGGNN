@@ -9,6 +9,9 @@ class Config(object):
             self._config = self._config.get(config)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    def set_property(self, property_name, value):
+        self._config[property_name] = value
+
     def get_property(self, property_name):
         return self._config.get(property_name)
 
@@ -18,6 +21,19 @@ class Config(object):
     def all(self):
         return self._config
 
+    def update_from_args(self, args):
+        if args.learning_rate is not None:
+            self.set_property('learning_rate', args.learning_rate)
+        if args.batch_size is not None:
+            self.set_property('batch_size', args.batch_size)
+        if args.epochs is not None:
+            self.set_property('epochs', args.epochs)
+        if args.weight_decay is not None:
+            self.set_property('weight_decay', args.weight_decay)
+        if args.patience is not None:
+            self.set_property('patience', args.patience)
+        if args.pred_lambda is not None:
+            self.set_property('pred_lambda', args.pred_lambda)
 
 class Create(Config):
     def __init__(self):
@@ -126,8 +142,8 @@ class BertGGNN(Config):
         return self.get_property('weight_decay')
 
     @property
-    def loss_lambda(self):
-        return self.get_property('loss_lambda')
+    def pred_lambda(self):
+        return self.get_property('pred_lambda')
 
     @property
     def model(self):

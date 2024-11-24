@@ -71,12 +71,14 @@ class Conv(nn.Module):
         concat_size = hidden.shape[1] + x.shape[1]
         concat = concat.view(-1, self.conv1d_1_args["in_channels"], concat_size)
 
-        Z = self.mp_1(F.relu(self.conv1d_1(concat)))
+        # Z = self.mp_1(F.relu(self.conv1d_1(concat)))
+        Z = self.mp_1(F.leaky_relu(self.conv1d_1(concat)))
         Z = self.mp_2(self.conv1d_2(Z))
 
         hidden = hidden.view(-1, self.conv1d_1_args["in_channels"], hidden.shape[1])
 
-        Y = self.mp_1(F.relu(self.conv1d_1(hidden)))
+        # Y = self.mp_1(F.relu(self.conv1d_1(hidden)))
+        Y = self.mp_1(F.leaky_relu(self.conv1d_1(hidden)))
         Y = self.mp_2(self.conv1d_2(Y))
 
         Z_flatten_size = int(Z.shape[1] * Z.shape[-1])
@@ -88,21 +90,24 @@ class Conv(nn.Module):
         output_fc2 = self.fc2(Y)
         res = output_fc1 * output_fc2
 
-#         output_fc1 = F.normalize(self.fc1(Z), p=2, dim=1)
-#         output_fc2 = F.normalize(self.fc2(Y), p=2, dim=1)
-#         res = output_fc1 * output_fc2
+        # (debugging) Normalize the output of the dense layers
+        # output_fc1 = F.normalize(self.fc1(Z), p=2, dim=1)
+        # output_fc2 = F.normalize(self.fc2(Y), p=2, dim=1)
+        # res = output_fc1 * output_fc2
 
-        if torch.isnan(output_fc1).any():
-            print("=== NaN detected in fc1(Z) outputs! ===")
-        if torch.isnan(output_fc2).any():
-            print("=== NaN detected in fc2(Y) outputs! ===")
-        
-        if torch.isnan(res).any():
-            print(f"=== NaN detected in res - Conv forward before softmax")
+        # (debugging) Check NaN values
+        # if torch.isnan(output_fc1).any():
+        #     print("=== NaN detected in fc1(Z) outputs! ===")
+        # if torch.isnan(output_fc2).any():
+        #     print("=== NaN detected in fc2(Y) outputs! ===")
+        # if torch.isnan(res).any():
+        #     print(f"=== NaN detected in res - Conv forward before softmax")
+
         res = self.drop(res)
         res = F.softmax(res, dim=1)
-        if torch.isnan(res).any():
-            print(f"=== NaN detected in res - Conv forward after softmax")
+
+        # if torch.isnan(res).any():
+        #     print(f"=== NaN detected in res - Conv forward after softmax")
         
         return res
 
