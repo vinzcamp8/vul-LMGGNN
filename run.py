@@ -178,10 +178,10 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     early_stop_counter = 0 
     path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
     os.makedirs(path_output_model)
-
+    print("Starting training...")
     for epoch in range(1, epochs + 1):
         train(model, DEVICE, train_loader, optimizer, epoch)
-        acc, precision, recall, f1 = validate(model, DEVICE, val_loader, path_output_model)
+        acc, precision, recall, f1 = validate(model, DEVICE, val_loader, path_output_model, epoch)
         print(f"Validation - Epoch {epoch} -", "acc: {:.4f}, prec: {:.4f}, recall: {:.4f}, f1: {:.4f}".format(acc, precision, recall, f1))
 
         if f1 > best_f1:
@@ -242,6 +242,7 @@ if __name__ == '__main__':
     python3 run.py -cpg -embed -dataloaders save -train -test -path "data/model/vul_lmgnn_model.pth" -learning_rate 0.0001 -batch_size 32 -epochs 10 -weight_decay 0.00001 -patience 5
     python3 run.py -dataloaders save -batch_size 32
     python3 run.py -train -test -learning_rate 0.0001 -batch_size 32 -epochs 10 -weight_decay 0.00001 -patience 5 -pred_lambda 0.5
+    nohup python3 run.py -train -test -learning_rate 0.0001 -batch_size 32 -epochs 10 -weight_decay 0.00001 -patience 5 -pred_lambda 0.5 >> train.log 2>&1 &
     '''
 
     '''
@@ -303,8 +304,10 @@ if __name__ == '__main__':
     ###
     if args.train:
         if not args.dataloaders:
+            print("Loading DataLoader objects...")
             train_loader = torch.load(f"input/bs_{args.batch_size}/train_loader.pth")
             val_loader = torch.load(f"input/bs_{args.batch_size}/val_loader.pth")
+            print("DataLoader objects loaded.")
         Training_Validation_Vul_LMGNN(args, train_loader, val_loader)
     ### 
 

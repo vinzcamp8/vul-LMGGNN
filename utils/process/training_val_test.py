@@ -48,7 +48,7 @@ def train(model, device, train_loader, optimizer, epoch):
                                                                             loss.item()))
 
 
-def validate(model, device, test_loader, path_output_results):
+def validate(model, device, test_loader, path_output_results, epoch):
     """
     Validates the model using the provided test data.
 
@@ -106,11 +106,11 @@ def validate(model, device, test_loader, path_output_results):
     # plt.savefig('confusion_matrix.png')
 
     with open(f'{path_output_results}{model.__class__.__name__}_val_metrics.txt', 'a') as f:
-        f.write('Validation Confusion Matrix:\n')
+        f.write(f'Epoch {epoch} - Validation Confusion Matrix:\n')
         np.savetxt(f, cm, fmt='%d', delimiter='\t')
         f.write('\n')
-        f.write('Validation set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%\n'.format(
-            test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
+        f.write('Epoch {epoch} - Validation set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%\n'.format(
+            epoch, test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
 
     return accuracy, precision, recall, f1
 
