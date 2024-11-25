@@ -35,17 +35,18 @@ def train(model, device, train_loader, optimizer, epoch):
         batch.y = batch.y.squeeze().long() 
         # batch.y = batch.y.long() # (debugging) if batch_size = 1 
 
-        loss = F.cross_entropy(y_pred, batch.y)
+        weights = torch.tensor([0.55882019, 4.75024161]).to(device)
+        loss = F.cross_entropy(y_pred, batch.y, weight=weights)
         loss.backward()
         optimizer.step()
         
         # (debugging)
         if (batch_idx + 1) % 100 == 0: # print every 100 mini-batches
-            print('Train Epoch: {} [{}/{} ({:.2f}%)]/t Loss: {:.6f}'.format(epoch, (batch_idx + 1) * len(batch),
+            print('=== Train Epoch: {} [{}/{} ({:.2f}%)]/t Loss: {:.6f}'.format(epoch, (batch_idx + 1) * len(batch),
                                                                             len(train_loader.dataset),
                                                                             100. * batch_idx / len(train_loader),
                                                                             loss.item()))
-            print("=== in train() y_pred min/max/mean: ", y_pred.min().item(), y_pred.max().item(), y_pred.mean().item(), f"\n=== LOSS in train() backward: {loss}")        
+            print("batch y_pred min/max/mean: ", y_pred.min().item(), y_pred.max().item(), y_pred.mean().item())        
 
 
 def validate(model, device, test_loader, path_output_results, epoch):
