@@ -11,7 +11,7 @@
                 "maxpool1d_1" : {"kernel_size" : 3, "stride" : 2},
                 "maxpool1d_2" : {"kernel_size" : 2, "stride" : 2}
             },
-            "emb_size" : 101
+            "emb_size" : 200
         }
     },
     "create" : {

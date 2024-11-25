@@ -232,17 +232,18 @@ if __name__ == '__main__':
     parser.add_argument('-epochs', '--epochs', type=int, help='Hyperparameter: Number of epochs for training.')
     parser.add_argument('-weight_decay', '--weight_decay', type=float, help='Hyperparameter: Weight decay for the optimizer.')
     parser.add_argument('-patience', '--patience', type=int, help='Hyperparameter: Patience for early stopping.')
-    parser.add_argument('-pred_lambda', '--pred_lambda', type=float, help='Hyperparameter: Lambda for interpolating predictions.')
+    parser.add_argument('-pred_lambda', '--pred_lambda', type=float, help='Hyperparameter: Lambda for interpolating predictions. λ = 1 signifies use only Vul-LMGNN, λ = 0 use only CodeBERT.')
     
     args = parser.parse_args()
     print("Run with args:", args)
     
     '''
     Example of running the script:
-    python3 run.py -cpg -embed -dataloaders save -train -test -path "data/model/vul_lmgnn_model.pth" -learning_rate 0.0001 -batch_size 32 -epochs 10 -weight_decay 0.00001 -patience 5
+    python3 run.py -cpg -embed -dataloaders save -train -test -learning_rate 0.0001 -batch_size 32 -epochs 10 -weight_decay 0.00001 -patience 5
+    python3 run.py -cpg -embed 
     python3 run.py -dataloaders save -batch_size 32
-    python3 run.py -train -test -learning_rate 0.0001 -batch_size 32 -epochs 10 -weight_decay 0.00001 -patience 5 -pred_lambda 0.5
-    nohup python3 run.py -train -test -learning_rate 0.0001 -batch_size 32 -epochs 10 -weight_decay 0.00001 -patience 5 -pred_lambda 0.5 >> train.log 2>&1 &
+    python3 run.py -train -test -learning_rate 5e-5 -batch_size 32 -epochs 3 -weight_decay 1e-6 -pred_lambda 0.5
+    nohup python3 run.py -train -test -learning_rate 5e-5 -batch_size 32 -epochs 3 -weight_decay 1e-6 -pred_lambda 0.5 >> train.log 2>&1 &
     '''
 
     '''

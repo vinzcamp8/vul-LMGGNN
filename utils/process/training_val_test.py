@@ -34,18 +34,18 @@ def train(model, device, train_loader, optimizer, epoch):
   
         batch.y = batch.y.squeeze().long() 
         # batch.y = batch.y.long() # (debugging) if batch_size = 1 
-        
+
         loss = F.cross_entropy(y_pred, batch.y)
         loss.backward()
         optimizer.step()
-        # (debugging)
-        # print("=== in train() y_pred min/max: ", y_pred.min().item(), y_pred.max().item(), f"\n=== LOSS in train() backward: {loss}")
         
+        # (debugging)
         if (batch_idx + 1) % 100 == 0: # print every 100 mini-batches
             print('Train Epoch: {} [{}/{} ({:.2f}%)]/t Loss: {:.6f}'.format(epoch, (batch_idx + 1) * len(batch),
                                                                             len(train_loader.dataset),
                                                                             100. * batch_idx / len(train_loader),
                                                                             loss.item()))
+            print("=== in train() y_pred min/max/mean: ", y_pred.min().item(), y_pred.max().item(), y_pred.mean().item(), f"\n=== LOSS in train() backward: {loss}")        
 
 
 def validate(model, device, test_loader, path_output_results, epoch):
@@ -106,11 +106,11 @@ def validate(model, device, test_loader, path_output_results, epoch):
     # plt.savefig('confusion_matrix.png')
 
     with open(f'{path_output_results}{model.__class__.__name__}_val_metrics.txt', 'a') as f:
-        f.write(f'Epoch {epoch} - Validation Confusion Matrix:\n')
+        f.write(f'\n=== Epoch {epoch} ===\n\nValidation Confusion Matrix:\n')
         np.savetxt(f, cm, fmt='%d', delimiter='\t')
         f.write('\n')
-        f.write('Epoch {epoch} - Validation set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%\n'.format(
-            epoch, test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
+        f.write('Validation set: Average loss: {:.4f}, Accuracy: {:.2f}%, Precision: {:.2f}%, Recall: {:.2f}%, F1: {:.2f}%\n'.format(
+        test_loss, accuracy * 100, precision * 100, recall * 100, f1 * 100))
 
     return accuracy, precision, recall, f1
 

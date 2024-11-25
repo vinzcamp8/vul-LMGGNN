@@ -27,7 +27,7 @@ class BertGGCN(nn.Module):
         # self.conv.apply(init_weights)
 
         # Linear layer to reduce the embedding size
-        self.linear_layer = nn.Linear(self.feat_dim + 1, 101).to(device)
+        self.linear_layer = nn.Linear(self.feat_dim + 1, emb_size).to(device)
 
     def forward(self, data):
         
@@ -60,7 +60,8 @@ class BertGGCN(nn.Module):
         cls_feats = self.bert_model(input_ids.to(self.device), attention_mask.to(self.device))[0][:, 0]
         cls_logit = self.classifier(cls_feats.to(self.device))
 
-
+        # since cls_logit can contain negative values, taking the log when there are negative values in pred results in NaN values
+        
         # Combine the predictions
         pred = (x + 1e-10) * self.k + cls_logit * (1 - self.k)
 
