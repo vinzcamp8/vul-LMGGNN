@@ -5,6 +5,7 @@ import seaborn as sns
 import torch
 import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+import gc
 
 def train(model, device, train_loader, optimizer, epoch):
     """
@@ -45,7 +46,7 @@ def train(model, device, train_loader, optimizer, epoch):
                                                                             len(train_loader.dataset),
                                                                             100. * batch_idx / len(train_loader),
                                                                             loss.item()))
-            print("batch y_pred min/max/mean: ", y_pred.min().item(), y_pred.max().item(), y_pred.mean().item())        
+            print("batch y_pred min/max/mean: ", y_pred.min().item(), y_pred.max().item(), y_pred.mean().item())
 
 
 def validate(model, device, test_loader, path_output_results, epoch):
