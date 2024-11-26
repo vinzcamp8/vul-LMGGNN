@@ -35,8 +35,7 @@ def train(model, device, train_loader, optimizer, epoch):
         batch.y = batch.y.squeeze().long() 
         # batch.y = batch.y.long() # (debugging) if batch_size = 1 
 
-        weights = torch.tensor([0.55882019, 4.75024161]).to(device)
-        loss = F.cross_entropy(y_pred, batch.y, weight=weights)
+        loss = F.cross_entropy(y_pred, batch.y)
         loss.backward()
         optimizer.step()
         

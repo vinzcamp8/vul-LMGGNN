@@ -170,15 +170,12 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     weight_decay = Bertggnn.weight_decay
     pred_lambda = Bertggnn.pred_lambda
 
-    # Initialize model and optimizer
+    # Initialize model, optimizer, and scheduler
     model = BertGGCN(pred_lambda, gated_graph_conv_args, conv_args, emb_size, DEVICE).to(DEVICE)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-
-    # Define learning rate scheduler
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
 
     best_f1 = 0.0
-    best_recall = 0.0
     early_stop_counter = 0
     path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
     os.makedirs(path_output_model)
@@ -192,20 +189,22 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
         acc, precision, recall, f1 = validate(model, DEVICE, val_loader, path_output_model, epoch)
         print(f"Validation - Epoch {epoch} -", "acc: {:.4f}, prec: {:.4f}, recall: {:.4f}, f1: {:.4f}".format(acc, precision, recall, f1))
 
-        # Save best F1 model
+        # Save checkpoint if F1 improves
         if f1 > best_f1:
             print("New best F1 score, before was: {:.4f}\nSaving model...".format(best_f1))
-            torch.save(model.state_dict(), str(path_output_model + "vul_lmgnn_f1.pth"))
             best_f1 = f1
-            early_stop_counter = 0  # Reset counter for early stopping
+            early_stop_counter = 0
+            
+            checkpoint = {
+                "epoch": epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "scheduler_state_dict": scheduler.state_dict(),
+                "best_f1": best_f1,
+            }
+            torch.save(checkpoint, str(path_output_model + "vul_lmgnn_checkpoint.pth"))
         else:
             early_stop_counter += 1
-
-        # Save best recall model
-        if recall > best_recall:
-            print("New best recall score, before was: {:.4f}\nSaving model...".format(best_recall))
-            torch.save(model.state_dict(), str(path_output_model + "vul_lmgnn_recall.pth"))
-            best_recall = recall
 
         # Update the learning rate
         scheduler.step()
