@@ -337,11 +337,7 @@ if __name__ == '__main__':
         if not args.dataloaders:
             test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
         
-        model_name = "vul_lmgnn_f1.pth"
-        print("Starting Test of Model:", model_name)
-        Testing_Vul_LMGNN(args, test_loader, model_path, model_name)
-
-        model_name = "vul_lmgnn_recall.pth"
+        model_name = "vul_lmgnn_checkpoint.pth"
         print("Starting Test of Model:", model_name)
         Testing_Vul_LMGNN(args, test_loader, model_path, model_name)
     ###
