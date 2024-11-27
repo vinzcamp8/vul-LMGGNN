@@ -10,7 +10,7 @@ import torch
 import pandas as pd
 from utils.data.datamanager import loads, train_val_test_split
 from models.LMGNN import BertGGCN
-from utils.process.training_val_test import train, validate, test
+from utils.process.training_val_test import train, validate, test, save_checkpoint, load_checkpoint
 import os
 
 '''
@@ -179,7 +179,7 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     early_stop_counter = 0
     path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
     os.makedirs(path_output_model)
-    print("Starting training...")
+    print("Starting training with args:", args)
     
     for epoch in range(1, epochs + 1):
         # Training step
@@ -195,16 +195,12 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
             best_f1 = f1
             early_stop_counter = 0
             
-            checkpoint = {
-                "epoch": epoch,
-                "model_state_dict": model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "scheduler_state_dict": scheduler.state_dict(),
-                "best_f1": best_f1,
-            }
-            torch.save(checkpoint, str(path_output_model + "vul_lmgnn_checkpoint.pth"))
+            # Save model checkpoint
+            checkpoint_path = str(path_output_model+"vul_lmgnn_checkpoint.pth")
+            save_checkpoint(epoch, model, best_f1, checkpoint_path, optimizer, scheduler)
         else:
             early_stop_counter += 1
+            print(f"No improvement in F1 score for {early_stop_counter} consecutive epochs.")
 
         # Update the learning rate
         scheduler.step()
@@ -227,7 +223,8 @@ def Testing_Vul_LMGNN(args, test_loader, model_path, model_name):
     pred_lambda = Bertggnn.pred_lambda 
 
     model_test = BertGGCN(pred_lambda, gated_graph_conv_args, conv_args, emb_size, DEVICE).to(DEVICE)
-    model_test.load_state_dict(torch.load(model_path+model_name))
+    path_checkpoint = str(model_path+model_name)
+    model_test = load_checkpoint(model_test, path_checkpoint)
     accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader, model_path)
     print(f"=== Testing results: accuracy: {accuracy}, precision: {precision}, recall: {recall}, f1: {f1} ===")
 
@@ -240,12 +237,12 @@ if __name__ == '__main__':
     parser.add_argument('-train', '--train', action="store_true", help='Start the training process. Specify hyperparameters.')
     parser.add_argument('-test', '--test', action="store_true", help='Start the testing process. Specify hyperparameters.')
     # Hyperparameters
-    parser.add_argument('-learning_rate', '--learning_rate', type=float, help='Hyperparameter: Learning rate for the model.')
+    parser.add_argument('-learning_rate', '--learning_rate', type=float, nargs='+', help='Hyperparameter: List of learning rates for the model.')
     parser.add_argument('-batch_size', '--batch_size', type=int, help='Hyperparameter: Batch size for training.')
     parser.add_argument('-epochs', '--epochs', type=int, help='Hyperparameter: Number of epochs for training.')
-    parser.add_argument('-weight_decay', '--weight_decay', type=float, help='Hyperparameter: Weight decay for the optimizer.')
+    parser.add_argument('-weight_decay', '--weight_decay', type=float, nargs='+', help='Hyperparameter: Weight decay for the optimizer.')
     parser.add_argument('-patience', '--patience', type=int, help='Hyperparameter: Patience for early stopping.')
-    parser.add_argument('-pred_lambda', '--pred_lambda', type=float, help='Hyperparameter: Lambda for interpolating predictions. λ = 1 signifies use only Vul-LMGNN, λ = 0 use only CodeBERT.')
+    parser.add_argument('-pred_lambda', '--pred_lambda', type=float, nargs='+', help='Hyperparameter: Lambda for interpolating predictions. λ = 1 signifies use only Vul-LMGNN, λ = 0 use only CodeBERT.')
     
     args = parser.parse_args()
     print("Run with args:", args)
@@ -318,12 +315,23 @@ if __name__ == '__main__':
     '''
     ###
     if args.train:
-        if not args.dataloaders:
-            print("Loading DataLoader objects...")
-            train_loader = torch.load(f"input/bs_{args.batch_size}/train_loader.pth")
-            val_loader = torch.load(f"input/bs_{args.batch_size}/val_loader.pth")
-            print("DataLoader objects loaded.")
-        Training_Validation_Vul_LMGNN(args, train_loader, val_loader)
+        if args.learning_rate and args.weight_decay and args.pred_lambda:
+            learning_rates = args.learning_rate
+            weight_decays = args.weight_decay
+            pred_lambdas = args.pred_lambda
+            for lr in learning_rates:
+                args.learning_rate = lr
+                for wd in weight_decays:
+                    args.weight_decay = wd
+                    for pl in pred_lambdas:
+                        args.pred_lambda = pl
+                        print(args)
+                        if not 'train_loader' in locals() or not 'val_loader' in locals():
+                            print("Loading DataLoader objects...")
+                            train_loader = torch.load(f"input/bs_{args.batch_size}/train_loader.pth")
+                            val_loader = torch.load(f"input/bs_{args.batch_size}/val_loader.pth")
+                            print("DataLoader objects loaded.")
+                        Training_Validation_Vul_LMGNN(args, train_loader, val_loader)
     ### 
 
     '''
@@ -333,13 +341,24 @@ if __name__ == '__main__':
     Parameter configs.json: 
     '''
     ###
+    args = parser.parse_args() # reload args (due to previous modification in training)
     if args.test:
-        model_path = f"{PATHS.model}vul_lmgnn_{args.learning_rate}_{args.batch_size}_{args.epochs}_{args.weight_decay}_{args.pred_lambda}/"
-        if not args.dataloaders:
-            test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
-        
-        model_name = "vul_lmgnn_checkpoint.pth"
-        print("Starting Test of Model:", model_name)
-        Testing_Vul_LMGNN(args, test_loader, model_path, model_name)
-    ###
+        if args.learning_rate and args.weight_decay and args.pred_lambda:
+            learning_rates = args.learning_rate
+            weight_decays = args.weight_decay
+            pred_lambdas = args.pred_lambda
+            for lr in learning_rates:
+                args.learning_rate = lr
+                for wd in weight_decays:
+                    args.weight_decay = wd
+                    for pl in pred_lambdas:
+                        args.pred_lambda = pl
+                        if not 'test_loader' in locals() or not 'model' in locals():
+                            print("Loading TestLoader...")
+                            test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
+                        model_path = f"{PATHS.model}vul_lmgnn_{args.learning_rate}_{args.batch_size}_{args.epochs}_{args.weight_decay}_{args.pred_lambda}/"
+                        model_name = "vul_lmgnn_checkpoint.pth"
+                        print("Starting Test of Model:", model_path+model_name)
+                        Testing_Vul_LMGNN(args, test_loader, model_path, model_name)
+    ##
 

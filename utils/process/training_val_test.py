@@ -201,6 +201,32 @@ def test(model, device, test_loader, path_output_results):
     
     return accuracy, precision, recall, f1
 
+def save_checkpoint(epoch, model, best_f1, path_output_model, optimizer, scheduler):
+    checkpoint = {
+        "epoch": epoch,
+        "model_state_dict": model.state_dict(),
+        "best_f1": best_f1,
+        "optimizer_state_dict": optimizer.state_dict(),
+        "scheduler_state_dict": scheduler.state_dict(),
+    }
+    torch.save(checkpoint, path_output_model)
+
+def load_checkpoint(model, path_checkpoint, optimizer=None, scheduler=None):
+    checkpoint = torch.load(path_checkpoint)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    best_f1 = checkpoint["best_f1"]
+    epoch = checkpoint["epoch"]
+
+    if optimizer is not None and scheduler is not None:
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+        print(f"Checkpoint loaded. Resuming from epoch {epoch + 1}. Last best F1 {best_f1}.")
+        return model, optimizer, scheduler, best_f1, epoch
+    else:
+        print(f"Checkpoint loaded for testing. Validation best F1 {best_f1}.")
+        return model
+
+
 '''
 How to read Confusion Matrix for binary classification
 [[TN   FP]
