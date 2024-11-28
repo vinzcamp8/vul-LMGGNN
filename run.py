@@ -176,6 +176,7 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
 
     best_f1 = 0.0
+    best_recall = 0.0
     early_stop_counter = 0
     path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
     os.makedirs(path_output_model)
@@ -190,9 +191,10 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
         print(f"Validation - Epoch {epoch} -", "acc: {:.4f}, prec: {:.4f}, recall: {:.4f}, f1: {:.4f}".format(acc, precision, recall, f1))
 
         # Save checkpoint if F1 improves
-        if f1 > best_f1:
+        if f1 > best_f1 or (f1 == best_f1 and recall > best_recall):
             print("New best F1 score, before was: {:.4f}\nSaving model...".format(best_f1))
             best_f1 = f1
+            best_recall = recall
             early_stop_counter = 0
             
             # Save model checkpoint
@@ -353,7 +355,7 @@ if __name__ == '__main__':
                     args.weight_decay = wd
                     for pl in pred_lambdas:
                         args.pred_lambda = pl
-                        if not 'test_loader' in locals() or not 'model' in locals():
+                        if not 'test_loader' in locals():
                             print("Loading TestLoader...")
                             test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
                         model_path = f"{PATHS.model}vul_lmgnn_{args.learning_rate}_{args.batch_size}_{args.epochs}_{args.weight_decay}_{args.pred_lambda}/"
