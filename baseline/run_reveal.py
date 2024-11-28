@@ -1,7 +1,7 @@
 import torch
 import configs
 import os
-from utils.process.training_val_test import train, validate, test, save_checkpoint, load_checkpoint
+from baseline.training_val_test import train, validate, test, save_checkpoint, load_checkpoint
 from models.reveal import Reveal
 
 PATHS = configs.Paths()

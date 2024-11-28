@@ -10,7 +10,7 @@ import torch
 import pandas as pd
 from utils.data.datamanager import loads, train_val_test_split
 from models.LMGNN import BertGGCN
-from utils.process.training_val_test import train, validate, test, save_checkpoint, load_checkpoint
+from baseline.training_val_test import train, validate, test, save_checkpoint, load_checkpoint
 import os
 
 '''
