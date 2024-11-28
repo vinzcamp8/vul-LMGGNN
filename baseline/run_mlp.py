@@ -89,6 +89,9 @@ def run_mlp(args, train_loader, val_loader, test_loader):
     # Test the model
     model_test = MLP(INPUT_DIM, HIDDEN_DIM, NUM_CLASSES).to(DEVICE)
     path_checkpoint = str(path_output_model+"mlp_checkpoint.pth")
+    if not os.path.exists(path_checkpoint):
+        print(f"Checkpoint file not found at {path_checkpoint}. Skipping test.")
+        return
     model_test = load_checkpoint(model_test, path_checkpoint)
     accuracy, precision, recall, f1 = test(model_test, DEVICE, test_loader, path_output_model)
     print(f"=== Testing results: accuracy: {accuracy}, precision: {precision}, recall: {recall}, f1: {f1} ===")

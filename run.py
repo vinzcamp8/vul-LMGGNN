@@ -255,7 +255,7 @@ if __name__ == '__main__':
     python3 run.py -cpg -embed 
     python3 run.py -dataloaders save -batch_size 32
     python3 run.py -train -test -learning_rate 5e-5 -batch_size 32 -epochs 3 -weight_decay 1e-6 -pred_lambda 0.5
-    nohup python3 run.py -train -test -learning_rate 5e-5 -batch_size 32 -epochs 3 -weight_decay 1e-6 -pred_lambda 0.5 >> train.log 2>&1 &
+    nohup python3 run.py -train -test -learning_rate 5e-5 -batch_size 32 -epochs 3 -weight_decay 1e-6 -pred_lambda 0.5 -patience 5 >> train.log 2>&1 &
     '''
 
     '''
@@ -360,7 +360,11 @@ if __name__ == '__main__':
                             test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
                         model_path = f"{PATHS.model}vul_lmgnn_{args.learning_rate}_{args.batch_size}_{args.epochs}_{args.weight_decay}_{args.pred_lambda}/"
                         model_name = "vul_lmgnn_checkpoint.pth"
-                        print("Starting Test of Model:", model_path+model_name)
-                        Testing_Vul_LMGNN(args, test_loader, model_path, model_name)
+                        path_checkpoint = str(model_path+model_name)
+                        if not os.path.exists(path_checkpoint):
+                            print(f"Checkpoint file not found at {path_checkpoint}. Skipping test.")
+                        else:
+                            print("Starting Test of Model:", model_path+model_name)
+                            Testing_Vul_LMGNN(args, test_loader, model_path, model_name)
     ##
 
