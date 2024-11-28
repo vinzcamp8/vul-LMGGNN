@@ -1,6 +1,6 @@
 import warnings
 
-import dgl
+# import dgl
 import torch as th
 import torch.nn as nn
 
@@ -89,25 +89,26 @@ class TreeLSTM(nn.Module):
         g.ndata["iou"] = self.cell.W_iou(self.dropout(embeds))
         g.ndata["h"] = th.zeros((n, self.h_size)).to(self.dev)
         g.ndata["c"] = th.zeros((n, self.h_size)).to(self.dev)
+        
+        # COMMENT OUT IF YOU WANT USE DGL
+        # # propagate
+        # dgl.prop_nodes_topo(
+        #     g,
+        #     self.cell.message_func,
+        #     self.cell.reduce_func,
+        #     apply_node_func=self.cell.apply_node_func,
+        # )
+        # # return hidden state
+        # h = self.dropout(g.ndata.pop("h"))
 
-        # propagate
-        dgl.prop_nodes_topo(
-            g,
-            self.cell.message_func,
-            self.cell.reduce_func,
-            apply_node_func=self.cell.apply_node_func,
-        )
-        # return hidden state
-        h = self.dropout(g.ndata.pop("h"))
-
-        # unbatch and get root node (ASSUME ROOT NODE AT IDX=0)
-        g.ndata["h"] = h
-        unbatched = dgl.unbatch(g)
-        return dict(
-            [[
-                    (i.ndata["_ID"][0].int().item(), i.ndata["_LINE"][0].int().item()),
-                    i.ndata["h"][0],
-                ]
-                for i in unbatched
-            ]
-        )
+        # # unbatch and get root node (ASSUME ROOT NODE AT IDX=0)
+        # g.ndata["h"] = h
+        # unbatched = dgl.unbatch(g)
+        # return dict(
+        #     [[
+        #             (i.ndata["_ID"][0].int().item(), i.ndata["_LINE"][0].int().item()),
+        #             i.ndata["h"][0],
+        #         ]
+        #         for i in unbatched
+        #     ]
+        # )

@@ -60,6 +60,9 @@ class IVDetectModel(nn.Module):
 
         self.final_layer = nn.Linear(self.h_size, self.num_classes)
 
+        # Linear layer to reduce the embedding size
+        self.linear_layer = nn.Linear(769, 200)
+
     @property
     def key_layer(self):
         return self.convs[-1]
@@ -151,6 +154,5 @@ class IVDetectModel(nn.Module):
             return out
 
     def reduce_embedding(self, x):
-        linear_layer = nn.Linear(x.size(1), 101)
-        reduced_embedding = linear_layer(x)
+        reduced_embedding = self.linear_layer(x)
         return reduced_embedding

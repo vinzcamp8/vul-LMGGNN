@@ -70,7 +70,7 @@ update-alternatives --config java
 ```
 
 ### For IVDetect
-Install dgl 2.3.0
+Install dgl 2.3.0 (optional)
 Pytorch 2.3.0
 Torch-sparse 2.3.0
 ```

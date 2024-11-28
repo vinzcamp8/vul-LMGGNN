@@ -33,15 +33,14 @@ if __name__ == '__main__':
     val_loader = torch.load(f"input/bs_{args.batch_size}/val_loader.pth")
     test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
 
+    learning_rates = args.learning_rate
+    weight_decays = args.weight_decay
     for model in args.model:
 
         if model == 'dummy':
             print("Running Dummy...")
             from baseline.run_dummy import run_dummy
             run_dummy(train_loader, val_loader, test_loader)
-
-        learning_rates = args.learning_rate
-        weight_decays = args.weight_decay
         for learning_rate in learning_rates:
             for weight_decay in weight_decays:
                 args.learning_rate = learning_rate
