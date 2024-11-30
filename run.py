@@ -248,6 +248,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     print("Run with args:", args)
+    print("Using device:", DEVICE)
     
     '''
     Example of running the script:
