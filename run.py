@@ -178,6 +178,7 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     best_f1 = 0.0
     best_recall = 0.0
     early_stop_counter = 0
+    always_0_counter = 0
     path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
     os.makedirs(path_output_model)
     print("Starting training with args:", args)
@@ -196,10 +197,13 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
             best_f1 = f1
             best_recall = recall
             early_stop_counter = 0
+            always_0_counter = 0
             
             # Save model checkpoint
             checkpoint_path = str(path_output_model+"vul_lmgnn_checkpoint.pth")
             save_checkpoint(epoch, model, best_f1, checkpoint_path, optimizer, scheduler)
+        elif f1 == 0.0:
+            always_0_counter += 1
         else:
             early_stop_counter += 1
             print(f"No improvement in F1 score for {early_stop_counter} consecutive epochs.")
@@ -211,6 +215,9 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
         # Early stopping condition
         if early_stop_counter >= early_stop_patience:
             print(f"Early stopping triggered. No improvement in F1 score for {early_stop_patience} consecutive epochs.")
+            break
+        if always_0_counter >= 3:
+            print(f"Early stopping triggered. F1 score always 0 for {always_0_counter} consecutive epochs.")
             break
 
 
