@@ -43,8 +43,11 @@ class BertGGCN(nn.Module):
         # if self.training:
         #     self.update_nodes(data)
         
-        # Reduce embeddings            
-        data.x = self.reduce_embedding(data)
+        # Reduce embeddings
+        print(f"=== BertGCNN forward - data.x.size(1): {data.x.size(1)}")
+        
+        if data.x.size(1) > self.linear_layer.out_features:    
+            data.x = self.reduce_embedding(data)
         
         # Extract x, edge_index, and text
         x, edge_index, text = data.x, data.edge_index, data.func

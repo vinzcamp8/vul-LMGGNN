@@ -12,6 +12,8 @@ from utils.data.datamanager import loads, train_val_test_split
 from models.LMGNN import BertGGCN
 from baseline.training_val_test import train, validate, test, save_checkpoint, load_checkpoint
 import os
+from gensim.models.word2vec import Word2Vec
+import utils.process.embeddings_w2v as prepare
 
 '''
 Load the configuration parameters from the configs.json file
@@ -129,14 +131,54 @@ def Embed_generator():
         del cpg_dataset
         gc.collect()
 
+def Embed_generator_w2v():
+    context = configs.Embed()
+    # Tokenize source code into tokens
+    dataset_files = data.get_directory_files(PATHS.cpg)
+    w2vmodel = Word2Vec(**context.w2v_args)
+    w2v_init = True
+    for pkl_file in dataset_files:
+        file_name = pkl_file.split(".")[0]
+        cpg_dataset = data.load(PATHS.cpg, pkl_file)
+        tokens_dataset = data.tokenize(cpg_dataset)
+        data.write(tokens_dataset, PATHS.tokens, f"{file_name}_{FILES.tokens}")
+        # word2vec used to learn the initial embedding of each token
+        # print(f"=== tokens dataset {tokens_dataset} ===")
+        # print(f"=== tokens dataset {tokens_dataset.tokens} ===")
+
+        w2vmodel.build_vocab(sentences=tokens_dataset.tokens, update=not w2v_init)
+        w2vmodel.train(tokens_dataset.tokens, total_examples=w2vmodel.corpus_count, epochs=1)
+        if w2v_init:
+            w2v_init = False
+        # Embed cpg to node representation and pass to graph data structure
+        cpg_dataset["nodes"] = cpg_dataset.apply(lambda row: cpg.parse_to_nodes(row.cpg, context.nodes_dim), axis=1)
+        # remove rows with no nodes
+        cpg_dataset = cpg_dataset.loc[cpg_dataset.nodes.map(len) > 0]
+        cpg_dataset["input"] = cpg_dataset.apply(lambda row: prepare.nodes_to_input(row.nodes, row.target, context.nodes_dim,
+                                                                                    w2vmodel.wv, context.edge_type), axis=1)
+        data.drop(cpg_dataset, ["nodes"])
+        print(f"Saving input dataset {file_name} with size {len(cpg_dataset)}.")
+        data.write(cpg_dataset[["input", "target", "func"]], PATHS.input_w2v, f"{file_name}_{FILES.input}")
+        
+        del cpg_dataset
+        gc.collect()
+    print("Saving w2vmodel.")
+    w2vmodel.save(f"{PATHS.w2v}/{FILES.w2v}")
+
 def Dataloaders_generator(args, save=False):
     context = configs.Process()
     context.update_from_args(args)
     if save:
-        path = f"input/bs_{context.batch_size}/"
+        if args.w2v:
+            path = f"input/bs_{context.batch_size}_w2v/"
+        else:
+            path = f"input/bs_{context.batch_size}/"
         os.makedirs(path)
 
-    input_dataset = loads(PATHS.input)
+    if args.w2v:
+        input_dataset = loads(PATHS.input_w2v)
+    else:
+        input_dataset = loads(PATHS.input)
 
     # split the dataset and pass to DataLoader with batch size
     train_loader, val_loader, test_loader = list(
@@ -146,9 +188,14 @@ def Dataloaders_generator(args, save=False):
     print(f'=== run.py - DataLoaders: {len(train_loader)} {len(val_loader)} {len(test_loader)} ====')
 
     if save:
-        torch.save(train_loader, f"{path}/train_loader.pth")
-        torch.save(val_loader, f"{path}/val_loader.pth")
-        torch.save(test_loader, f"{path}/test_loader.pth")
+        if args.w2v:
+            torch.save(train_loader, f"{path}/train_loader_w2v.pth")
+            torch.save(val_loader, f"{path}/val_loader_w2v.pth")
+            torch.save(test_loader, f"{path}/test_loader_w2v.pth")
+        else:
+            torch.save(train_loader, f"{path}/train_loader.pth")
+            torch.save(val_loader, f"{path}/val_loader.pth")
+            torch.save(test_loader, f"{path}/test_loader.pth")
         print(f"DataLoaders saved in {path}")
 
     return train_loader, val_loader, test_loader
@@ -161,7 +208,10 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
 
     gated_graph_conv_args = Bertggnn.model["gated_graph_conv_args"]
     conv_args = Bertggnn.model["conv_args"]
-    emb_size = Bertggnn.model["emb_size"]
+    if args.w2v:
+        emb_size = 101
+    else:
+        emb_size = Bertggnn.model["emb_size"]
     early_stop_patience = context.patience
 
     learning_rate = Bertggnn.learning_rate
@@ -186,14 +236,13 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     # Check if a checkpoint exists
     checkpoint_path = None
     for file in os.listdir(PATHS.model):
-        print(file)
         if file.startswith(f"vul_lmgnn_{learning_rate}_{batch_size}_") and file.endswith(f"_{weight_decay}_{pred_lambda}"):
             print(f"Checkpoint found at {file}")
             checkpoint_path = os.path.join(PATHS.model, file, "vul_lmgnn_checkpoint.pth")
             break
     if checkpoint_path is not None:
         model, optimizer, scheduler, best_f1, starting_epoch = load_checkpoint(model, checkpoint_path, optimizer, scheduler)
-        print(f"#####\nModel loaded from checkpoint: {checkpoint_path}. Resuming training from epoch {starting_epoch}.\n#####")
+        print(f"#####\nModel loaded from checkpoint: {checkpoint_path}.\n#####")
         if os.path.exists(path_output_model):
             epochs += 1
             path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
@@ -228,8 +277,8 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
             print(f"No improvement in F1 score for {early_stop_counter} consecutive epochs.")
 
         # Update the learning rate
-        scheduler.step()
-        print(f"Epoch {epoch} completed. Learning rate: {scheduler.get_last_lr()[0]:.6f}")
+        # scheduler.step()
+        # print(f"Epoch {epoch} completed. Learning rate: {scheduler.get_last_lr()[0]:.6f}")
 
         # Early stopping condition
         if early_stop_counter >= early_stop_patience:
@@ -271,7 +320,8 @@ if __name__ == '__main__':
     parser.add_argument('-weight_decay', '--weight_decay', type=float, nargs='+', help='Hyperparameter: Weight decay for the optimizer.')
     parser.add_argument('-patience', '--patience', type=int, help='Hyperparameter: Patience for early stopping.')
     parser.add_argument('-pred_lambda', '--pred_lambda', type=float, nargs='+', help='Hyperparameter: Lambda for interpolating predictions. λ = 1 signifies use only Vul-LMGNN, λ = 0 use only CodeBERT.')
-    
+    parser.add_argument('-w2v', '--w2v', action="store_true", help='Specify to perform Embedding generation task with Word2Vec.')
+
     args = parser.parse_args()
     print("Run with args:", args)
     print("Using device:", DEVICE)
@@ -316,9 +366,12 @@ if __name__ == '__main__':
     '''
     ###
     if args.embed:
-        Embed_generator()
+        if args.w2v:
+            Embed_generator_w2v()
+        else:
+            Embed_generator()
     ### 
-
+    
     '''
     Load_input_dataset(), load input dataset from .pkl files
     Input: .pkl files containing embeddings
@@ -357,10 +410,16 @@ if __name__ == '__main__':
                         print(args)
                         if not 'train_loader' in locals() or not 'val_loader' in locals():
                             print("Loading DataLoader objects...")
-                            train_loader = torch.load(f"input/bs_{args.batch_size}/train_loader.pth")
-                            val_loader = torch.load(f"input/bs_{args.batch_size}/val_loader.pth")
+                            if args.w2v:
+                                train_loader = torch.load(f"input/bs_{args.batch_size}_w2v/train_loader_w2v.pth")
+                                val_loader = torch.load(f"input/bs_{args.batch_size}_w2v/val_loader_w2v.pth")
+                            else:
+                                train_loader = torch.load(f"input/bs_{args.batch_size}/train_loader.pth")
+                                val_loader = torch.load(f"input/bs_{args.batch_size}/val_loader.pth")
                             print("DataLoader objects loaded.")
                         Training_Validation_Vul_LMGNN(args, train_loader, val_loader)
+        else:
+            print("Specify learning_rate, weight_decay, and pred_lambda to train the model.")
     ### 
 
     '''
@@ -384,7 +443,10 @@ if __name__ == '__main__':
                         args.pred_lambda = pl
                         if not 'test_loader' in locals():
                             print("Loading TestLoader...")
-                            test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
+                            if args.w2v:
+                                test_loader = torch.load(f"input/bs_{args.batch_size}_w2v/test_loader_w2v.pth")
+                            else:
+                                test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
                         model_path = f"{PATHS.model}vul_lmgnn_{args.learning_rate}_{args.batch_size}_{args.epochs}_{args.weight_decay}_{args.pred_lambda}/"
                         model_name = "vul_lmgnn_checkpoint.pth"
                         path_checkpoint = str(model_path+model_name)
@@ -393,5 +455,7 @@ if __name__ == '__main__':
                         else:
                             print("Starting Test of Model:", model_path+model_name)
                             Testing_Vul_LMGNN(args, test_loader, model_path, model_name)
+        else:
+            print("Specify learning_rate, weight_decay, and pred_lambda to test the model.")
     ##
 

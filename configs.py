@@ -65,12 +65,20 @@ class Data(Config):
         return self.get_property('input')
 
     @property
+    def input_w2v(self):
+        return self.get_property('input_w2v')
+
+    @property
     def model(self):
         return self.get_property('model')
 
     @property
     def tokens(self):
         return self.get_property('tokens')
+
+    @property
+    def w2v(self):
+        return self.get_property('w2v')
 
 
 class Paths(Data):
@@ -90,6 +98,10 @@ class Files(Data):
     def tokens(self):
         return self.get_property('tokens')
 
+    @property
+    def w2v(self):
+        return self.get_property('w2v')
+
 
 class Embed(Config):
     def __init__(self):
@@ -102,6 +114,10 @@ class Embed(Config):
     @property
     def edge_type(self):
         return self.get_property('edge_type')
+    
+    @property
+    def w2v_args(self):
+        return self.get_property('word2vec_args')
 
 
 class Process(Config):
@@ -144,7 +160,11 @@ class BertGGNN(Config):
     @property
     def pred_lambda(self):
         return self.get_property('pred_lambda')
-
+    
+    @property
+    def w2v(self):
+        return self.get_property('w2v')
+    
     @property
     def model(self):
         return self.get_property('model')

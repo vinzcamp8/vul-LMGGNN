@@ -7,8 +7,7 @@ baseline_models = ['reveal', 'ivdetect', 'dummy', 'mlp', 'gcn']
 if __name__ == '__main__':
     parser: ArgumentParser = argparse.ArgumentParser()
     parser.add_argument('-model', '--model', type=str, nargs='+', help='Baseline models to run. Options: reveal, ivdetect, dummy, mlp, gcn.')
-    parser.add_argument('-train', '--train', action="store_true", help='Start the training process. Specify hyperparameters.')
-    parser.add_argument('-test', '--test', action="store_true", help='Start the testing process. Specify hyperparameters.')
+    parser.add_argument('-w2v', '--w2v', action="store_true", help='Start the training and testing process using the word2vec dataset.')
     # Hyperparameters
     parser.add_argument('-learning_rate', '--learning_rate', type=float, nargs='+', help='Hyperparameter: List of learning rates for the model.')
     parser.add_argument('-batch_size', '--batch_size', type=int, help='Hyperparameter: Batch size for training.')
@@ -17,8 +16,8 @@ if __name__ == '__main__':
     parser.add_argument('-patience', '--patience', type=int, help='Hyperparameter: Patience for early stopping.')
 
     '''
-    python3 -u baseline_run.py -model reveal -train -learning_rate 1e-04 -batch_size 8 -epochs 10 -weight_decay 1e-04 -patience 3
-    python3 -u baseline_run.py -model mlp -train -learning_rate 1e-04 -batch_size 8 -epochs 3 -weight_decay 1e-04 -patience 3
+    python3 -u baseline_run.py -model reveal -learning_rate 1e-04 -batch_size 8 -epochs 10 -weight_decay 1e-04 -patience 3
+    python3 -u baseline_run.py -model mlp -learning_rate 1e-04 -batch_size 8 -epochs 3 -weight_decay 1e-04 -patience 3
     '''
     
     args = parser.parse_args()
@@ -29,9 +28,14 @@ if __name__ == '__main__':
         exit(1)
 
     print("Loading data...")
-    train_loader = torch.load(f"input/bs_{args.batch_size}/train_loader.pth")
-    val_loader = torch.load(f"input/bs_{args.batch_size}/val_loader.pth")
-    test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
+    if args.w2v:
+        train_loader = torch.load(f"input/bs_{args.batch_size}_w2v/train_loader_w2v.pth")
+        val_loader = torch.load(f"input/bs_{args.batch_size}_w2v/val_loader_w2v.pth")
+        test_loader = torch.load(f"input/bs_{args.batch_size}_w2v/test_loader_w2v.pth")
+    else:
+        train_loader = torch.load(f"input/bs_{args.batch_size}/train_loader.pth")
+        val_loader = torch.load(f"input/bs_{args.batch_size}/val_loader.pth")
+        test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
 
     learning_rates = args.learning_rate
     weight_decays = args.weight_decay

@@ -86,7 +86,8 @@ class Reveal(nn.Module):
 
     def forward(self, *args, **kwargs):
         x, edge_index, batch = self.arguments_read(*args, **kwargs)
-        x = self.reduce_embedding(x)
+        if x.size(1) > 200:
+            x = self.reduce_embedding(x)
         graph_emb, node_emb = self.embed_graph(x, edge_index, batch)
         feature_emb = self.extract_feature(graph_emb)
         probs = self.classifier(feature_emb) # [batch_size, 2]

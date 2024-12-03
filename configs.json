@@ -23,17 +23,23 @@
         "joern" : "data/joern/",
         "raw" : "data/raw/",
         "input" : "data/input/",
+        "input_w2v" : "data/input_w2v/",
         "model" : "data/model/",
-        "tokens" : "data/tokens/"
+        "tokens" : "data/tokens/",
+        "w2v" : "data/w2v/"
     },
     "files" : {
         "raw" : "mivia-megavul_combined_dataset.json",
         "cpg" : "cpg",
         "tokens" : "tokens.pkl",
+        "w2v" : "w2v.model",
         "input" : "input.pkl"
     },
     "embed" : {
         "nodes_dim" : 205,
+        "word2vec_args": {"alpha" : 0.01, "window" : 5, "min_count" : 3, "sample" : 1e-5,
+            "workers" : 4, "sg" : 1, "hs" : 0, "negative" : 5
+            },
         "edge_type": "Cpg"
     },
     "process" : {
