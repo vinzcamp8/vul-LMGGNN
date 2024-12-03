@@ -228,8 +228,8 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
             print(f"No improvement in F1 score for {early_stop_counter} consecutive epochs.")
 
         # Update the learning rate
-        scheduler.step()
-        print(f"Epoch {epoch} completed. Learning rate: {scheduler.get_last_lr()[0]:.6f}")
+        # scheduler.step()
+        # print(f"Epoch {epoch} completed. Learning rate: {scheduler.get_last_lr()[0]:.6f}")
 
         # Early stopping condition
         if early_stop_counter >= early_stop_patience:

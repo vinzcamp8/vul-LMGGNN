@@ -24,6 +24,8 @@ def train(model, device, train_loader, optimizer, epoch):
         vul_lmgnn_flag = False
     
     model.train()
+    
+    weight = torch.tensor([3.0, 7.0]).to(device)
 
     for batch_idx, batch in enumerate(train_loader):
         batch.to(device)
@@ -36,7 +38,7 @@ def train(model, device, train_loader, optimizer, epoch):
         batch.y = batch.y.squeeze().long() 
         # batch.y = batch.y.long() # (debugging) if batch_size = 1 
 
-        loss = F.cross_entropy(y_pred, batch.y)
+        loss = F.cross_entropy(y_pred, batch.y, weight=weight)
         loss.backward()
         optimizer.step()
         
