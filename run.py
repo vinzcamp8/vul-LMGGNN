@@ -193,7 +193,7 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
             break
     if checkpoint_path is not None:
         model, optimizer, scheduler, best_f1, starting_epoch = load_checkpoint(model, checkpoint_path, optimizer, scheduler)
-        print(f"#####\nModel loaded from checkpoint: {checkpoint_path}. Resuming training from epoch {epoch}.\n#####")
+        print(f"#####\nModel loaded from checkpoint: {checkpoint_path}. Resuming training from epoch {starting_epoch}.\n#####")
         if os.path.exists(path_output_model):
             epochs += 1
             path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
