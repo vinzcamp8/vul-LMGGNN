@@ -169,7 +169,7 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     epochs = context.epochs
     weight_decay = Bertggnn.weight_decay
     pred_lambda = Bertggnn.pred_lambda
-
+    
     # Initialize model, optimizer, and scheduler
     model = BertGGCN(pred_lambda, gated_graph_conv_args, conv_args, emb_size, DEVICE).to(DEVICE)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -179,11 +179,30 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     best_recall = 0.0
     early_stop_counter = 0
     always_0_counter = 0
+    starting_epoch = 1
+
     path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
+
+    # Check if a checkpoint exists
+    checkpoint_path = None
+    for file in os.listdir(PATHS.model):
+        print(file)
+        if file.startswith(f"vul_lmgnn_{learning_rate}_{batch_size}_") and file.endswith(f"_{weight_decay}_{pred_lambda}"):
+            print(f"Checkpoint found at {file}")
+            checkpoint_path = os.path.join(PATHS.model, file, "vul_lmgnn_checkpoint.pth")
+            break
+    if checkpoint_path is not None:
+        model, optimizer, scheduler, best_f1, starting_epoch = load_checkpoint(model, checkpoint_path, optimizer, scheduler)
+        print(f"#####\nModel loaded from checkpoint: {checkpoint_path}. Resuming training from epoch {epoch}.\n#####")
+        if os.path.exists(path_output_model):
+            epochs += 1
+            path_output_model = f"{PATHS.model}vul_lmgnn_{learning_rate}_{batch_size}_{epochs}_{weight_decay}_{pred_lambda}/"
+            print(f"Output path updated to {path_output_model}")
+
     os.makedirs(path_output_model)
-    print("Starting training with args:", args)
     
-    for epoch in range(1, epochs + 1):
+    print("Starting training with args:", args)
+    for epoch in range(starting_epoch , epochs + 1): # partire dal numero di epoche del checkpoint
         # Training step
         train(model, DEVICE, train_loader, optimizer, epoch)
         
