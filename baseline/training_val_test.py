@@ -25,7 +25,7 @@ def train(model, device, train_loader, optimizer, epoch):
     
     model.train()
     
-    weight = torch.tensor([3.0, 7.0]).to(device)
+    weight = torch.tensor([0.6, 4.5]).to(device)
 
     for batch_idx, batch in enumerate(train_loader):
         batch.to(device)
