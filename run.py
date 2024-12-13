@@ -271,7 +271,8 @@ if __name__ == '__main__':
     parser.add_argument('-weight_decay', '--weight_decay', type=float, nargs='+', help='Hyperparameter: Weight decay for the optimizer.')
     parser.add_argument('-patience', '--patience', type=int, help='Hyperparameter: Patience for early stopping.')
     parser.add_argument('-pred_lambda', '--pred_lambda', type=float, nargs='+', help='Hyperparameter: Lambda for interpolating predictions. λ = 1 signifies use only Vul-LMGNN, λ = 0 use only CodeBERT.')
-    
+    parser.add_argument('-path', '--path', type=str, default=None, help='Path to the model checkpoint to test.')
+
     args = parser.parse_args()
     print("Run with args:", args)
     print("Using device:", DEVICE)
@@ -385,8 +386,13 @@ if __name__ == '__main__':
                         if not 'test_loader' in locals():
                             print("Loading TestLoader...")
                             test_loader = torch.load(f"input/bs_{args.batch_size}/test_loader.pth")
-                        model_path = f"{PATHS.model}vul_lmgnn_{args.learning_rate}_{args.batch_size}_{args.epochs}_{args.weight_decay}_{args.pred_lambda}/"
-                        model_name = "vul_lmgnn_checkpoint.pth"
+                        if args.path is not None:
+                            model_path = args.path.split("/", )[:-1]
+                            model_path = "/".join(model_path)
+                            model_name = "/"+args.path.split("/")[-1]
+                        else:
+                            model_path = f"{PATHS.model}vul_lmgnn_{args.learning_rate}_{args.batch_size}_{args.epochs}_{args.weight_decay}_{args.pred_lambda}/"
+                            model_name = "vul_lmgnn_checkpoint.pth"
                         path_checkpoint = str(model_path+model_name)
                         if not os.path.exists(path_checkpoint):
                             print(f"Checkpoint file not found at {path_checkpoint}. Skipping test.")
