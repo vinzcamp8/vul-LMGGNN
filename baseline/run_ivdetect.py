@@ -30,7 +30,7 @@ def run_ivdetect(args, train_loader, val_loader, test_loader):
     
     for epoch in range(1, epochs + 1):
         # Training step
-        train(model, DEVICE, train_loader, optimizer, epoch)
+        train(model, DEVICE, train_loader, optimizer, epoch, path_output_model)
         
         # Validation step
         acc, precision, recall, f1 = validate(model, DEVICE, val_loader, path_output_model, epoch)
@@ -51,8 +51,8 @@ def run_ivdetect(args, train_loader, val_loader, test_loader):
             print(f"No improvement in F1 score for {early_stop_counter} consecutive epochs.")
 
         # Update the learning rate
-        scheduler.step()
-        print(f"Epoch {epoch} completed. Learning rate: {scheduler.get_last_lr()[0]:.6f}")
+        # scheduler.step()
+        # print(f"Epoch {epoch} completed. Learning rate: {scheduler.get_last_lr()[0]:.6f}")
 
         # Early stopping condition
         if early_stop_counter >= early_stop_patience:

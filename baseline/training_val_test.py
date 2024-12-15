@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import gc
 
-def train(model, device, train_loader, optimizer, epoch):
+def train(model, device, train_loader, optimizer, epoch, path_output_results):
     """
     Trains the model using the provided data.
 
@@ -27,6 +27,8 @@ def train(model, device, train_loader, optimizer, epoch):
     
     weight = torch.tensor([0.6, 4.5]).to(device)
 
+    train_loss = 0.0
+
     for batch_idx, batch in enumerate(train_loader):
         batch.to(device)
 
@@ -41,6 +43,7 @@ def train(model, device, train_loader, optimizer, epoch):
         loss = F.cross_entropy(y_pred, batch.y, weight=weight)
         loss.backward()
         optimizer.step()
+        train_loss += loss.item()
         
         # (debugging)
         if (batch_idx + 1) % 100 == 0: # print every 100 mini-batches
@@ -48,7 +51,12 @@ def train(model, device, train_loader, optimizer, epoch):
                                                                             len(train_loader.dataset),
                                                                             100. * batch_idx / len(train_loader),
                                                                             loss.item()))
-            print("batch y_pred min/max/mean: ", y_pred.min().item(), y_pred.max().item(), y_pred.mean().item())
+            # print("batch y_pred min/max/mean: ", y_pred.min().item(), y_pred.max().item(), y_pred.mean().item())
+
+
+    train_loss /= len(train_loader)    
+    with open(f'{path_output_results}{model.__class__.__name__}_train_loss.txt', 'a') as f:
+        f.write(f'Epoch {epoch}\t'+'Average loss: {:.4f}\n'.format(train_loss))
 
 
 def validate(model, device, test_loader, path_output_results, epoch):

@@ -186,7 +186,6 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     # Check if a checkpoint exists
     checkpoint_path = None
     for file in os.listdir(PATHS.model):
-        print(file)
         if file.startswith(f"vul_lmgnn_{learning_rate}_{batch_size}_") and file.endswith(f"_{weight_decay}_{pred_lambda}"):
             print(f"Checkpoint found at {file}")
             checkpoint_path = os.path.join(PATHS.model, file, "vul_lmgnn_checkpoint.pth")
@@ -204,7 +203,7 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
     print("Starting training with args:", args)
     for epoch in range(starting_epoch , epochs + 1): # partire dal numero di epoche del checkpoint
         # Training step
-        train(model, DEVICE, train_loader, optimizer, epoch)
+        train(model, DEVICE, train_loader, optimizer, epoch, path_output_model)
         
         # Validation step
         acc, precision, recall, f1 = validate(model, DEVICE, val_loader, path_output_model, epoch)
