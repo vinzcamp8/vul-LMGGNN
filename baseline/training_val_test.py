@@ -173,30 +173,6 @@ def test(model, device, test_loader, path_output_results):
     print("Test Confusion Matrix: ")
     print(cm)
 
-    # plt.figure(figsize=(8, 6))
-    # sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=['benign', 'malware'],
-    #             yticklabels=['benign', 'malware'])
-    # plt.xlabel('Predicted')
-    # plt.ylabel('True')
-    # plt.title('Confusion Matrix')
-    # plt.savefig('confusion_matrix.png')
-
-    # y_true = np.nan_to_num(0)
-    # y_probs = np.nan_to_num(0)
-    # fpr, tpr, _ = roc_curve(y_true, y_probs)
-    # roc_auc = auc(fpr, tpr)
-
-    # plt.figure()
-    # plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-    # plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    # plt.xlim([0.0, 1.0])
-    # plt.ylim([0.0, 1.05])
-    # plt.xlabel('False Positive Rate')
-    # plt.ylabel('True Positive Rate')
-    # plt.title('Receiver Operating Characteristic (ROC) Curve')
-    # plt.legend(loc='lower right')
-    # plt.savefig('roc_curve.png')
-
     results_array = np.column_stack((y_true, y_pred, y_probs))
     header_text = "True label, Predicted label, Predicted Probability"
     with open(f'{path_output_results}{model.__class__.__name__}_test_probabilities.txt', 'a') as f:
