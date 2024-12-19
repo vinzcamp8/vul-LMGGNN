@@ -2,11 +2,11 @@ import argparse
 from argparse import ArgumentParser
 import torch
 
-baseline_models = ['reveal', 'ivdetect', 'dummy', 'mlp', 'gcn']
+baseline_models = ['reveal', 'ivdetect', 'dummy', 'mlp', 'gcn', 'gat']
 
 if __name__ == '__main__':
     parser: ArgumentParser = argparse.ArgumentParser()
-    parser.add_argument('-model', '--model', type=str, nargs='+', help='Baseline models to run. Options: reveal, ivdetect, dummy, mlp, gcn.')
+    parser.add_argument('-model', '--model', type=str, nargs='+', help='Baseline models to run. Options: reveal, ivdetect, dummy, mlp, gcn, gat.')
     parser.add_argument('-train', '--train', action="store_true", help='Start the training process. Specify hyperparameters.')
     parser.add_argument('-test', '--test', action="store_true", help='Start the testing process. Specify hyperparameters.')
     # Hyperparameters
@@ -65,3 +65,8 @@ if __name__ == '__main__':
                     print("Running MLP...")
                     from baseline.run_mlp import run_mlp
                     run_mlp(args, train_loader, val_loader, test_loader)
+                
+                elif model == 'gat':
+                    print("Running GAT...")
+                    from baseline.run_gat import run_gat
+                    run_gat(args, train_loader, val_loader, test_loader)
