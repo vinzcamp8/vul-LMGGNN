@@ -137,19 +137,24 @@ def Dataloaders_generator(args, save=False):
         os.makedirs(path)
 
     input_dataset = loads(PATHS.input)
+    print("Start dataloader generators...")
 
     # split the dataset and pass to DataLoader with batch size
     train_loader, val_loader, test_loader = list(
         map(lambda x: x.get_loader(context.batch_size, shuffle=context.shuffle),
             train_val_test_split(input_dataset, shuffle=context.shuffle)))
     
-    print(f'=== run.py - DataLoaders: {len(train_loader)} {len(val_loader)} {len(test_loader)} ====')
+    print(f'=== run.py - DataLoaders lengths: {len(train_loader)} {len(val_loader)} {len(test_loader)} ====')
 
     if save:
+        print("Saving torch data files...")
         torch.save(train_loader, f"{path}/train_loader.pth")
+        print("Saved train.")
         torch.save(val_loader, f"{path}/val_loader.pth")
+        print("Saved val.")
         torch.save(test_loader, f"{path}/test_loader.pth")
-        print(f"DataLoaders saved in {path}")
+        print("Saved test.")
+        print(f"All dataLoaders saved in {path}")
 
     return train_loader, val_loader, test_loader
 
