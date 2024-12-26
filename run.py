@@ -243,6 +243,82 @@ def Training_Validation_Vul_LMGNN(args, train_loader, val_loader):
             print(f"Early stopping triggered. F1 score always 0 for {always_0_counter} consecutive epochs.")
             break
 
+from sklearn.model_selection import KFold
+import torch
+import os
+from torch_geometric.loader import DataLoader
+
+def cross_validation(args, train_loader, val_loader):
+    context = configs.Process()
+    context.update_from_args(args)
+    Bertggnn = configs.BertGGNN()
+    Bertggnn.update_from_args(args)
+
+    gated_graph_conv_args = Bertggnn.model["gated_graph_conv_args"]
+    conv_args = Bertggnn.model["conv_args"]
+    emb_size = Bertggnn.model["emb_size"]
+    early_stop_patience = context.patience
+
+    learning_rate = Bertggnn.learning_rate
+    batch_size = context.batch_size
+    epochs = context.epochs
+    weight_decay = Bertggnn.weight_decay
+    pred_lambda = Bertggnn.pred_lambda
+
+    all_data = list(train_loader.dataset) + list(val_loader.dataset)
+    kf = KFold(n_splits=7, shuffle=True, random_state=42)
+    fold_results = []
+
+    for fold, (train_idx, val_idx) in enumerate(kf.split(all_data)):
+        print(f"Starting Fold {fold + 1}/7")
+        
+        train_data = [all_data[i] for i in train_idx]
+        val_data = [all_data[i] for i in val_idx]
+
+        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False, drop_last=False)
+
+        # Initialize model, optimizer, and scheduler
+        model = BertGGCN(pred_lambda, gated_graph_conv_args, conv_args, emb_size, DEVICE).to(DEVICE)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
+
+        best_f1 = 0.0
+        best_recall = 0.0
+        early_stop_counter = 0
+
+        for epoch in range(1, epochs + 1):
+            train(model, DEVICE, train_loader, optimizer, epoch, f"fold_{fold + 1}/")
+            acc, precision, recall, f1 = validate(model, DEVICE, val_loader, f"fold_{fold + 1}/", epoch)
+
+            if f1 > best_f1 or (f1 == best_f1 and recall > best_recall):
+                best_f1 = f1
+                best_recall = recall
+                early_stop_counter = 0
+
+                checkpoint_path = f"fold_{fold + 1}_best_checkpoint.pth"
+                save_checkpoint(epoch, model, best_f1, checkpoint_path, optimizer, scheduler)
+            else:
+                early_stop_counter += 1
+
+            if early_stop_counter >= early_stop_patience:
+                print(f"Early stopping triggered for Fold {fold + 1}.")
+                break
+
+            # scheduler.step()
+
+        fold_results.append({
+            "fold": fold + 1,
+            "best_f1": best_f1,
+            "best_recall": best_recall,
+        })
+
+    # Save results to file
+    results_path = "7_fold_results.txt"
+    with open(results_path, "w") as f:
+        for result in fold_results:
+            f.write(f"Fold {result['fold']} - Best F1: {result['best_f1']:.4f}, Best Recall: {result['best_recall']:.4f}\n")
+    print(f"7-Fold validation results saved to {results_path}.")
 
 
 
@@ -276,6 +352,7 @@ if __name__ == '__main__':
     parser.add_argument('-patience', '--patience', type=int, help='Hyperparameter: Patience for early stopping.')
     parser.add_argument('-pred_lambda', '--pred_lambda', type=float, nargs='+', help='Hyperparameter: Lambda for interpolating predictions. λ = 1 signifies use only Vul-LMGNN, λ = 0 use only CodeBERT.')
     parser.add_argument('-path', '--path', type=str, default=None, help='Path to the model checkpoint to test.')
+    parser.add_argument('-cross_val', '--cross_val', action="store_true", help='Perform 7-fold cross validation.')
 
     args = parser.parse_args()
     print("Run with args:", args)
@@ -367,6 +444,24 @@ if __name__ == '__main__':
                             print("DataLoader objects loaded.")
                         Training_Validation_Vul_LMGNN(args, train_loader, val_loader)
     ### 
+
+    if args.cross_val:
+        if args.learning_rate and args.weight_decay and args.pred_lambda:
+            learning_rates = args.learning_rate
+            weight_decays = args.weight_decay
+            pred_lambdas = args.pred_lambda
+            for lr in learning_rates:
+                args.learning_rate = lr
+                for wd in weight_decays:
+                    args.weight_decay = wd
+                    for pl in pred_lambdas:
+                        args.pred_lambda = pl
+                        if not 'train_loader' in locals() or not 'val_loader' in locals():
+                            print("Loading DataLoader objects...")
+                            train_loader = torch.load(f"input/bs_{args.batch_size}/train_loader.pth")
+                            val_loader = torch.load(f"input/bs_{args.batch_size}/val_loader.pth")
+                            print("DataLoader objects loaded.")
+                        cross_validation(args, train_loader, val_loader)
 
     '''
     Testing_Vul_LMGNN(), test the model
