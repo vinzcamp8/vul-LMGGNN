@@ -286,17 +286,20 @@ def cross_validation(args, train_loader, val_loader):
         best_f1 = 0.0
         best_recall = 0.0
         early_stop_counter = 0
+        
+        path_output_model = f"data/cross_val/fold_{fold + 1}/"
+        os.makedirs(path_output_model)
 
         for epoch in range(1, epochs + 1):
-            train(model, DEVICE, train_loader, optimizer, epoch, f"fold_{fold + 1}/")
-            acc, precision, recall, f1 = validate(model, DEVICE, val_loader, f"fold_{fold + 1}/", epoch)
+            train(model, DEVICE, train_loader, optimizer, epoch, path_output_model)
+            acc, precision, recall, f1 = validate(model, DEVICE, val_loader, path_output_model, epoch)
 
             if f1 > best_f1 or (f1 == best_f1 and recall > best_recall):
                 best_f1 = f1
                 best_recall = recall
                 early_stop_counter = 0
 
-                checkpoint_path = f"fold_{fold + 1}_best_checkpoint.pth"
+                checkpoint_path = str(path_output_model+f"fold_{fold + 1}_best_checkpoint.pth")
                 save_checkpoint(epoch, model, best_f1, checkpoint_path, optimizer, scheduler)
             else:
                 early_stop_counter += 1
@@ -314,7 +317,7 @@ def cross_validation(args, train_loader, val_loader):
         })
 
     # Save results to file
-    results_path = "7_fold_results.txt"
+    results_path = str(path_output_model+"7_fold_results.txt")
     with open(results_path, "w") as f:
         for result in fold_results:
             f.write(f"Fold {result['fold']} - Best F1: {result['best_f1']:.4f}, Best Recall: {result['best_recall']:.4f}\n")

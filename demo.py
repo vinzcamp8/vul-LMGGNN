@@ -177,10 +177,12 @@ if __name__ == '__main__':
     start_time = time.time()
     cpg_file = parse_CPG_single_file(args.sample_path, 1)
     time_to_generate_cpg = time.time() - start_time
-    print("\nTime to generate CPG: {:.2f} seconds.\n".format(time_to_generate_cpg))
+    print("\n --- Time to generate CPG: {:.2f} seconds. ---\n".format(time_to_generate_cpg))
+
+    start_time = time.time()
     embed_file , pyg_data = embed_single_pkl(cpg_file)
-    time_to_embed = time.time() - time_to_generate_cpg
-    print("\nTime to embed: {:.2f} seconds.\n".format(time_to_embed))
+    time_to_embed = time.time() - start_time
+    print("\n--- Time to embed: {:.2f} seconds. ---\n".format(time_to_embed))
     
 
     # Load the model
@@ -200,5 +202,5 @@ if __name__ == '__main__':
     start_time = time.time()
     demo(model, DEVICE, pyg_data)
     time_to_inference = time.time() - start_time
-    print("\nTime to inference: {:.2f} seconds.\n".format(time_to_inference))
+    print("\n--- Time to inference: {:.2f} seconds ---.\n".format(time_to_inference))
     
