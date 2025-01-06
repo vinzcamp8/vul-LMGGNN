@@ -193,6 +193,7 @@ if __name__ == '__main__':
     model_path = args.model_path
     if "vul_lmgnn" in model_path:
         args.learning_rate, args.batch_size, args.epochs, args.weight_decay, args.pred_lambda = parse_hyperparameters_from_foldername(args.model_path, vul_lmgnn=True)
+        args.patience = 5
         Bertggnn = configs.BertGGNN()
         Bertggnn.update_from_args(args)
         gated_graph_conv_args = Bertggnn.model["gated_graph_conv_args"]
@@ -210,7 +211,7 @@ if __name__ == '__main__':
             model = GAT(769, 64, 2, 8).to(DEVICE)
             model = load_checkpoint(model, args.model_path+"/gat_checkpoint.pth")
         elif "mlp" in model_path:
-            model = MLP(769, 64, 2).to(DEVICE)
+            model = MLP(769, 128, 2).to(DEVICE)
             model = load_checkpoint(model, args.model_path+"/mlp_checkpoint.pth")
         elif "ivdetect" in model_path:
             model = IVDetectModel().to(DEVICE)
@@ -218,21 +219,19 @@ if __name__ == '__main__':
         elif "reveal" in model_path:
             model = Reveal().to(DEVICE)
             model = load_checkpoint(model, args.model_path+"/reveal_checkpoint.pth")
-    
-    args.patience = 5
 
     start_time = time.time()
     cpg_file = parse_CPG_single_file(args.sample_path, 1)
     time_to_generate_cpg = time.time() - start_time
-    print("\n --- Time to generate CPG: {:.2f} seconds. ---\n".format(time_to_generate_cpg))
+    print("\n --- Time to generate CPG: {:.4f} seconds. ---\n".format(time_to_generate_cpg))
 
     start_time = time.time()
     embed_file , pyg_data = embed_single_pkl(cpg_file)
     time_to_embed = time.time() - start_time
-    print("\n--- Time to embed: {:.2f} seconds. ---\n".format(time_to_embed))
+    print("\n--- Time to embed: {:.4f} seconds. ---\n".format(time_to_embed))
     
     start_time = time.time()
     demo(model, DEVICE, pyg_data)
     time_to_inference = time.time() - start_time
-    print("\n--- Time to inference: {:.2f} seconds ---.\n".format(time_to_inference))
+    print("\n--- Time to inference: {:.4f} seconds ---.\n".format(time_to_inference))
     
