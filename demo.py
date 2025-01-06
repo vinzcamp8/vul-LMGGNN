@@ -10,6 +10,11 @@ import utils.functions.cpg_mod as cpg
 import torch
 import numpy as np
 from models.LMGNN import BertGGCN
+from baseline.run_gcn import GCN
+from baseline.run_gat import GAT
+from baseline.run_mlp import MLP
+from models.ivdetect import IVDetectModel
+from models.reveal import Reveal
 from baseline.training_val_test import load_checkpoint
 from torch_geometric.data import Data
 import time
@@ -144,7 +149,7 @@ Training on Vul-LMGNN model with:
 - pred_lambda 0.5 (this hyperparametr is only for Vul-LMGNN)
 '''
 
-def parse_hyperparameters_from_foldername(foldername):
+def parse_hyperparameters_from_foldername(foldername, vul_lmgnn=True):
     """
     Parses the hyperparameters from the folder name in which the model is saved.
 
@@ -154,14 +159,23 @@ def parse_hyperparameters_from_foldername(foldername):
     Returns:
         Tuple containing the hyperparameters for the model.
     """
-    hyperparams = foldername.split("_")
-    learning_rate = float(hyperparams[2])
-    batch_size = int(hyperparams[3])
-    epochs = int(hyperparams[4])
-    weight_decay = float(hyperparams[5])
-    pred_lambda = float(hyperparams[6])
+    if vul_lmgnn:
+        hyperparams = foldername.split("_")
+        learning_rate = float(hyperparams[2])
+        batch_size = int(hyperparams[3])
+        epochs = int(hyperparams[4])
+        weight_decay = float(hyperparams[5])
+        pred_lambda = float(hyperparams[6])
 
-    return learning_rate, batch_size, epochs, weight_decay, pred_lambda
+        return learning_rate, batch_size, epochs, weight_decay, pred_lambda
+    else:
+        hyperparams = foldername.split("_")
+        learning_rate = float(hyperparams[1])
+        batch_size = int(hyperparams[2])
+        epochs = int(hyperparams[3])
+        weight_decay = float(hyperparams[4])
+
+        return learning_rate, batch_size, epochs, weight_decay
 
 if __name__ == '__main__':
 
@@ -173,7 +187,40 @@ if __name__ == '__main__':
     
     '''
     example: python3 demo.py --model_path="data/model/vul_lmgnn_5e-05_32_10_1e-05_0.5" --sample_path="data/demo/0.c"
-    '''
+    '''   
+
+    # Load the model
+    model_path = args.model_path
+    if "vul_lmgnn" in model_path:
+        args.learning_rate, args.batch_size, args.epochs, args.weight_decay, args.pred_lambda = parse_hyperparameters_from_foldername(args.model_path, vul_lmgnn=True)
+        Bertggnn = configs.BertGGNN()
+        Bertggnn.update_from_args(args)
+        gated_graph_conv_args = Bertggnn.model["gated_graph_conv_args"]
+        conv_args = Bertggnn.model["conv_args"]
+        emb_size = Bertggnn.model["emb_size"]
+        pred_lambda = Bertggnn.pred_lambda 
+        model = BertGGCN(pred_lambda, gated_graph_conv_args, conv_args, emb_size, DEVICE).to(DEVICE)
+        model = load_checkpoint(model, args.model_path+"/vul_lmgnn_checkpoint.pth")
+    else:
+        args.learning_rate, args.batch_size, args.epochs, args.weight_decay = parse_hyperparameters_from_foldername(args.model_path, vul_lmgnn=False)
+        if "gcn" in model_path:
+            model = GCN(769, 64, 2).to(DEVICE)
+            model = load_checkpoint(model, args.model_path+"/gcn_checkpoint.pth")
+        elif "gat" in model_path:
+            model = GAT(769, 64, 2, 8).to(DEVICE)
+            model = load_checkpoint(model, args.model_path+"/gat_checkpoint.pth")
+        elif "mlp" in model_path:
+            model = MLP(769, 64, 2).to(DEVICE)
+            model = load_checkpoint(model, args.model_path+"/mlp_checkpoint.pth")
+        elif "ivdetect" in model_path:
+            model = IVDetectModel().to(DEVICE)
+            model = load_checkpoint(model, args.model_path+"/ivdetect_checkpoint.pth")
+        elif "reveal" in model_path:
+            model = Reveal().to(DEVICE)
+            model = load_checkpoint(model, args.model_path+"/reveal_checkpoint.pth")
+    
+    args.patience = 5
+
     start_time = time.time()
     cpg_file = parse_CPG_single_file(args.sample_path, 1)
     time_to_generate_cpg = time.time() - start_time
@@ -183,21 +230,6 @@ if __name__ == '__main__':
     embed_file , pyg_data = embed_single_pkl(cpg_file)
     time_to_embed = time.time() - start_time
     print("\n--- Time to embed: {:.2f} seconds. ---\n".format(time_to_embed))
-    
-
-    # Load the model
-    args.learning_rate, args.batch_size, args.epochs, args.weight_decay, args.pred_lambda = parse_hyperparameters_from_foldername(args.model_path)
-    args.patience = 5
-
-    Bertggnn = configs.BertGGNN()
-
-    Bertggnn.update_from_args(args)
-    gated_graph_conv_args = Bertggnn.model["gated_graph_conv_args"]
-    conv_args = Bertggnn.model["conv_args"]
-    emb_size = Bertggnn.model["emb_size"]
-    pred_lambda = Bertggnn.pred_lambda 
-    model = BertGGCN(pred_lambda, gated_graph_conv_args, conv_args, emb_size, DEVICE).to(DEVICE)
-    model = load_checkpoint(model, args.model_path+"/vul_lmgnn_checkpoint.pth")
     
     start_time = time.time()
     demo(model, DEVICE, pyg_data)
