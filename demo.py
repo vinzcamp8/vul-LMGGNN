@@ -186,7 +186,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     '''
-    example: python3 demo.py --model_path="data/model/vul_lmgnn_5e-05_32_10_1e-05_0.5" --sample_path="data/demo/0.c"
+    examples: 
+    python3 demo.py --model_path="data/model/vul_lmgnn_5e-05_32_10_1e-05_0.5" --sample_path="data/demo/0.c"
+    python3 demo.py --model_path="data/model/gcn_0.0001_8_3_0.0001" --sample_path="data/demo/0.c"
     '''   
 
     # Load the model
