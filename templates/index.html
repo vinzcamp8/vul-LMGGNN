@@ -5,52 +5,98 @@
     <title>Code Analysis</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Franklin Gothic Medium';
             margin: 20px;
+            background-color: #c6c6c6;
         }
         h1 {
-            color: #333;
+            color: #3c3c3b;
+            /* color: #f9f9f9; */
         }
         textarea {
-            width: 100%;
+            width: 50%;
             height: 200px;
             margin-bottom: 10px;
+            /* background-color: #878787; */
+            background-color: #c6c6c6;
+            /* color: #f9f9f9; */
+            color: #3c3c3b;
+            /* border-color: #4dc8db; */
+            border-color: #3c3c3b;
+            border-radius: 10px;
+            border-width: 1.5pt;
+        }
+        textarea:hover {
+            /* border-color: #f9f9f9; */
+            border-color: #4dc8db;
+            transition: 0.4s;
+        }
+        textarea:focus {
+            border-color: #f9f9f9;
+            transition: 0.4s;
+        }
+        ::placeholder {
+            /* color: #f9f9f9; */
+            color: #3c3c3b;
         }
         button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
+            /* padding: 10px 20px; */
+            width: 10%;
+            height: 40px;
+            background-color: #4dc8db;
             color: white;
             border: none;
             cursor: pointer;
+            border-radius: 5px;
         }
         button:hover {
-            background-color: #45a049;
+            background-color: #2499ab;
         }
         #result {
-            margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            background-color: #f9f9f9;
-            white-space: pre-wrap;
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+
         }
         #status {
             margin-top: 10px;
             font-weight: bold;
         }
+        #cpg_info {
+            margin-top: 10px;
+            width: 33%;
+            height: 33%;
+            display: block;
+            font-weight: bold;
+            text-align: center;
+            font-size: 20px;
+        }
         #icon {
             margin-top: 10px;
             width: 33%;
             height: 33%;
+            display: block;
+            font-weight: bold;
+            text-align: center;
+            font-size: 30px;
+        }
+        #prediction {
+            margin-top: 10px;
+            width: 33%;
+            height: 33%;
+            display: block;
+            font-weight: bold;
+            text-align: center;
+            font-size: 20px
+        }
+        #analysis {
+            width: 20%;
+            height: 20%;
             position: relative;
             display: block;
             margin-left: auto;
             margin-right: auto;
-        }
-        #prediction {
-            margin-top: 10px;
-            font-weight: bold;
-            text-align: center;
-            font-size: 30px;
+            padding-bottom: 10px;
         }
     </style>
     <script>
@@ -59,7 +105,6 @@
         function analyzeCode() {
             const code = document.getElementById('code').value;
             document.getElementById('status').innerText = 'Submitting code for analysis...';
-            document.getElementById('result').innerText = '';
             fetch('/analyze', {
                 method: 'POST',
                 headers: {
@@ -88,16 +133,18 @@
                     setTimeout(pollForResult, 1000);
                 } else {
                     document.getElementById('status').innerText = 'Analysis complete.';
-                    document.getElementById('result').innerText = JSON.stringify(data, null, 2);
                     if (data.predicted_label == 0){
-                        document.getElementById('icon').innerHTML = '<img src="icons/secure.png" alt="secure" id="icon">';
-                        document.getElementById('prediction').innerHTML = 'The function is secure';
+                        document.getElementById('icon').innerHTML = '<center><img src="icons/secure.png" alt="secure" id="icon"></center><br>The function is secure';
                     }
                     else if (data.predicted_label == 1){
-                        document.getElementById('icon').innerHTML = '<img src="icons/unsecure.png" alt="unsecure" id="icon">';
-                        document.getElementById('prediction').innerHTML = 'The function is vulnerable';
+                        document.getElementById('icon').innerHTML = '<center><img src="icons/unsecure.png" alt="unsecure" id="icon"></center><br>The function is vulnerable';
                     }
-
+                    document.getElementById('cpg_info').innerHTML = data.n_nodes + ' nodes and ' + data.n_edges + ' edges in the CPG';
+                    pred_info = 'Probability: ' + data.prediction_probability + 's' 
+                    + '<br>Time to generate CPG: ' + data.time_to_generate_cpg + 's' 
+                    + '<br>Time to embed: ' + data.time_to_embed + 's' 
+                    + '<br>Time to inference: ' + data.time_to_inference + 's';
+                    document.getElementById('prediction').innerHTML = pred_info;
                 }
             });
         }
@@ -105,13 +152,18 @@
 </head>
 <body>
     <center><h1>Source Code Vulnerability Detection</h1></center>
+    <img src="icons/analysis.png" alt="analysis" id="analysis">
     <form onsubmit="event.preventDefault(); analyzeCode();">
-        <textarea id="code" name="code" placeholder="Enter your code here..."></textarea><br>
+        <center><textarea id="code" name="code" placeholder="Enter the code to analyze here..."></textarea><br></center>
         <center><button type="submit">Analyze</button></center>
     </form>
     <center><div id="status"></div></center>
-    <pre id="result"></pre>
-    <div id="icon"></div>
-    <div id="prediction"></div>
-</body>
+    <div id="result">
+        <!-- <div id="cpg_info">777 nodes,  77 edges </div>
+        <div id="icon"><img src="icons/unsecure.png" alt="unsecure" id="icon"><br>The function is vulnerable</div>
+        <div id="prediction"><br>Time to generate CPG: 0000<br>Time to generate CPG: 0000<br>Time to generate CPG: <br>Time to generate CPG: </div> -->
+        <div id="cpg_info"></div>
+        <div id="icon"></div>
+        <div id="prediction"></div>
+    </div>
 </html>

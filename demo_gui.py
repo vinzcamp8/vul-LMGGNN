@@ -34,13 +34,17 @@ def analyze():
             time_to_inference = re.search(r'Time to inference: (\d+\.\d+) seconds', decoded_stdout).group(1)
             predicted_label = re.search(r'Predicted label: \[\[(\d)\]\]', decoded_stdout).group(1)
             probability = re.search(r'Predicted probability: (\d\.\d+)', decoded_stdout).group(1)
+            n_nodes = re.search(r'Data\(x=\[(\d+),', decoded_stdout).group(1)
+            n_edges = re.search(r'edge_index=\[2, (\d+)\]', decoded_stdout).group(1)
             
             result = {
                 'time_to_generate_cpg': time_to_generate_cpg,
                 'time_to_embed': time_to_embed,
                 'time_to_inference': time_to_inference,
                 'predicted_label': predicted_label,
-                'prediction_probability': probability
+                'prediction_probability': probability,
+                'n_nodes': n_nodes,
+                'n_edges': n_edges
             }
         
         # Send the result back to the client
